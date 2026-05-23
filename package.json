@@ -7,7 +7,7 @@
     "name": "gaozhangmin",
     "email": "gaozhangmin@gmail.com"
   },
-  "homepage": "https://github.com/gaozhangmin/aliyunpan",
+  "homepage": "https://github.com/gaozhangmin/boxplayer",
   "license": "GPL-3.0",
   "bin": {
     "clouddrive-cli": "scripts/clouddrive-cli.mjs",
