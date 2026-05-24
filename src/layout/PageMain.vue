@@ -11,8 +11,12 @@ import {
   useUserStore,
   useWinStore
 } from '../store'
+import useMusicLibraryStore from '../store/musiclibrary'
+import { useMediaLibraryStore } from '../store/medialibrary'
 import { onHideRightMenu, TestAlt, TestCtrl, TestKey, TestShift } from '../utils/keyboardhelper'
 import { copyToClipboard, openExternal } from '../utils/electronhelper'
+import { bootstrapMusicLibrary, shutdownMusicLibrary } from '../utils/musicLibraryBootstrap'
+import { bootstrapMediaLibrary, shutdownMediaLibrary } from '../utils/mediaLibraryBootstrap'
 import { QRCode as AntQRCode } from 'ant-design-vue'
 import DebugLog from '../utils/debuglog'
 import message from '../utils/message'
@@ -24,6 +28,7 @@ import Down from '../down/index.vue'
 import Pan from '../pan/index.vue'
 import MediaLibraryView from '../views/MediaLibraryView.vue'
 import MediaServerView from '../views/MediaServerView.vue'
+import PageMusicLibrary from './PageMusicLibrary.vue'
 
 import UserInfo from '../user/UserInfo.vue'
 import UserLogin from '../user/UserLogin.vue'
@@ -44,6 +49,16 @@ const winStore = useWinStore()
 const keyboardStore = useKeyboardStore()
 const mouseStore = useMouseStore()
 const footStore = useFootStore()
+const musicStore = useMusicLibraryStore()
+const mediaStore = useMediaLibraryStore()
+
+const handleMusicLibraryClick = () => {
+  appStore.toggleTab('music')
+}
+
+const handleMediaLibraryClick = () => {
+  appStore.toggleTab('media')
+}
 
 const handlePanVisible = () => {
   panVisible.value = !panVisible.value
@@ -84,7 +99,8 @@ const themeTitle = computed(() => {
 const primaryTabDefinitions = [
   { key: 'pan', title: 'Alt+1', label: '网盘' },
   { key: 'media-server', title: 'Alt+6', label: '媒体服务器' },
-  { key: 'media', title: 'Alt+5', label: '媒体库' }
+  { key: 'media', title: 'Alt+5', label: '媒体库' },
+  { key: 'music', title: 'Alt+8', label: '音乐' }
 ]
 
 const orderedPrimaryTabs = computed(() => {
@@ -128,6 +144,7 @@ keyboardStore.$subscribe((_m: any, state: KeyboardState) => {
   if (TestAlt('5', state.KeyDownEvent, () => appStore.toggleTab('media'))) return
   if (TestAlt('6', state.KeyDownEvent, () => appStore.toggleTab('media-server'))) return
   if (TestAlt('7', state.KeyDownEvent, () => appStore.toggleTab('setting'))) return
+  if (TestAlt('8', state.KeyDownEvent, () => appStore.toggleTab('music'))) return
   if (TestAlt('f4', state.KeyDownEvent, () => handleHideClick(undefined))) return
   if (TestAlt('m', state.KeyDownEvent, () => handleMinClick(undefined))) return
   if (TestAlt('enter', state.KeyDownEvent, () => handleMaxClick(undefined))) return
@@ -208,6 +225,8 @@ onMounted(() => {
     onHideRightMenu()
   }, 300)
   window.addEventListener('click', onHideRightMenu, { passive: true })
+  bootstrapMusicLibrary()
+  bootstrapMediaLibrary()
 })
 
 onUnmounted(() => {
@@ -215,6 +234,8 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('mousedown', onMouseDown)
   window.removeEventListener('click', onHideRightMenu)
+  shutdownMusicLibrary()
+  shutdownMediaLibrary()
 })
 </script>
 <template>
@@ -286,6 +307,9 @@ onUnmounted(() => {
         <a-tab-pane key='media-server' title='6'>
           <MediaServerView :navVisible="mediaNavVisible" />
         </a-tab-pane>
+        <a-tab-pane key='music' title='8'>
+          <PageMusicLibrary />
+        </a-tab-pane>
         <a-tab-pane key='setting' title='7'>
           <Setting />
         </a-tab-pane>
@@ -307,6 +331,30 @@ onUnmounted(() => {
         </div>
         <div class='footinfo'>
           {{ footStore.GetSpaceInfo }}
+        </div>
+        <div
+          v-if="musicStore.isScanning && appStore.appTab !== 'music'"
+          class='footerBar fix music-scan-foot'
+          style='cursor: pointer; gap: 6px'
+          :title='musicStore.scanLabel || "正在扫描音乐库"'
+          @click='handleMusicLibraryClick'
+        >
+          <i class='iconfont iconmusic music-scan-spin' />
+          <span class='music-scan-text'>
+            {{ musicStore.scanLabel || '正在扫描音乐库' }} · {{ musicStore.scanFound }} 首
+          </span>
+        </div>
+        <div
+          v-if="mediaStore.isScanning && appStore.appTab !== 'media'"
+          class='footerBar fix music-scan-foot'
+          style='cursor: pointer; gap: 6px'
+          :title='`正在扫描视频媒体库 ${mediaStore.scanProgress}/${mediaStore.scanTotal}`'
+          @click='handleMediaLibraryClick'
+        >
+          <i class='iconfont iconvideo music-scan-spin' />
+          <span class='music-scan-text'>
+            视频媒体库扫描 {{ mediaStore.scanProgress }}/{{ mediaStore.scanTotal }}
+          </span>
         </div>
         <div class='flexauto' />
         <div :style="{ display: 'flex', paddingRight: '16px', flexShrink: 0, flexGrow: 0 }">
@@ -865,6 +913,32 @@ body[arco-theme='dark'] #footer2 audio::-webkit-media-controls-time-remaining-di
 .footspeedstr {
   min-width: 52px;
   display: inline-block;
+}
+
+.music-scan-foot {
+  opacity: 0.85;
+}
+
+.music-scan-foot:hover {
+  background-color: #569dff;
+  opacity: 1;
+}
+
+.music-scan-foot .iconfont.music-scan-spin {
+  font-size: 12px;
+  animation: music-scan-rotate 2.4s linear infinite;
+}
+
+.music-scan-foot .music-scan-text {
+  max-width: 240px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@keyframes music-scan-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
 

@@ -58,6 +58,7 @@ import { TestButton } from '../utils/mosehelper'
 import usePanTreeStore from './pantreestore'
 import { GetDriveID, GetDriveType, isAliyunUser, isCloud123User, isDrive115User } from '../aliapi/utils'
 import { xorWith } from 'lodash'
+import FolderPreviewPopover from './menus/FolderPreviewPopover.vue'
 
 const viewlist = ref()
 const inputsearch = ref()
@@ -68,6 +69,7 @@ const inputsearchType = ref<string[]>([])
 
 const handleListScroll = (event: any) => {
   onHideRightMenuScroll()
+  cancelFolderPreview()
   if (panfileStore.SelectDirType !== 'trash') return
   if (!isDrive115User(panTreeStore.user_id || '')) return
   const target = event?.target as HTMLElement | undefined
@@ -90,6 +92,7 @@ panfileStore.$subscribe((_m: any, state: PanFileState) => {
   if (state.DirID != dirID) {
     dirID = state.DirID
     if (viewlist.value) viewlist.value.scrollIntoView(0)
+    cancelFolderPreview()
   }
   if (state.DriveID != DriveID) {
     DriveID = state.DriveID
@@ -454,7 +457,42 @@ const onSelectRang = (file_id: string) => {
 }
 
 const dragingRowItem = ref(false)
+
+const folderPreviewRef = ref<{ open: (target: HTMLElement, params: any) => void; leave: () => void; cancel: () => void } | null>(null)
+
+const isFolderPreviewable = (item: IAliGetFileModel | undefined): boolean => {
+  if (!settingStore.uiFolderPreviewEnabled) return false
+  if (!item || !item.isDir) return false
+  const dirType = panfileStore.SelectDirType
+  if (dirType === 'trash' || dirType === 'recover') return false
+  if (item.description && item.description.includes('xbyEncrypt')) return false
+  return true
+}
+
+const cancelFolderPreview = () => {
+  folderPreviewRef.value?.cancel()
+}
+
+const onFolderItemEnter = (ev: MouseEvent, item: IAliGetFileModel) => {
+  if (!isFolderPreviewable(item)) return
+  if (dragingRowItem.value || rangIsSelecting.value || showDragUpload.value) return
+  const target = ev.currentTarget as HTMLElement
+  if (!target) return
+  const userId = (item as any).user_id || panTreeStore.user_id
+  folderPreviewRef.value?.open(target, {
+    user_id: userId,
+    drive_id: item.drive_id,
+    file_id: item.file_id,
+    name: item.name
+  })
+}
+
+const onFolderItemLeave = () => {
+  folderPreviewRef.value?.leave()
+}
+
 const onRowItemDragStart = (ev: any, file_id: string) => {
+  cancelFolderPreview()
   if (rangIsSelecting.value) {
     ev.stopPropagation()
     ev.preventDefault()
@@ -851,6 +889,8 @@ const onPanDragEnd = (ev: any) => {
             draggable='true'
             @click='handleSelect(item.file_id, $event)'
             @mouseover='onSelectRang(item.file_id)'
+            @mouseenter='(ev:MouseEvent)=>onFolderItemEnter(ev, item)'
+            @mouseleave='onFolderItemLeave'
             @contextmenu='(event:MouseEvent)=>handleRightClick({event,node:{key:item.file_id}} )'
             @dragstart='(ev) => onRowItemDragStart(ev, item.file_id)'
             @dragend='onRowItemDragEnd'
@@ -1020,6 +1060,8 @@ const onPanDragEnd = (ev: any) => {
                 draggable='true'
                 @click='handleSelect(grid.file_id, $event)'
                 @mouseover='() => onSelectRang(grid.file_id)'
+                @mouseenter='(ev:MouseEvent)=>onFolderItemEnter(ev, grid)'
+                @mouseleave='onFolderItemLeave'
                 @contextmenu='(event:MouseEvent)=>handleRightClick({event,node:{key:grid.file_id}} )'
                 @dragstart='(ev) => onRowItemDragStart(ev, grid.file_id)'
                 @dragend='onRowItemDragEnd'
@@ -1179,6 +1221,8 @@ const onPanDragEnd = (ev: any) => {
                 draggable='true'
                 @click='handleSelect(grid.file_id, $event)'
                 @mouseover='onSelectRang(grid.file_id)'
+                @mouseenter='(ev:MouseEvent)=>onFolderItemEnter(ev, grid)'
+                @mouseleave='onFolderItemLeave'
                 @contextmenu='(event:MouseEvent)=>handleRightClick({event,node:{key:grid.file_id}} )'
                 @dragstart='(ev) => onRowItemDragStart(ev, grid.file_id)'
                 @dragend='onRowItemDragEnd'
@@ -1328,6 +1372,8 @@ const onPanDragEnd = (ev: any) => {
       </div>
     </div>
   </div>
+
+  <FolderPreviewPopover ref='folderPreviewRef' />
 </template>
 
 <style>

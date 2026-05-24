@@ -143,6 +143,8 @@ window.Electron.ipcRenderer.on('setPage', (_event: any, args: any) => {
     appStore.pageVideoXBT = args.data
   } else if (args.page == 'PageVideo') {
     appStore.pageVideo = args.data
+  } else if (args.page == 'PageMusic') {
+    appStore.pageMusic = args.data
   }
   if (args.page) appStore.togglePage(args.page)
 })

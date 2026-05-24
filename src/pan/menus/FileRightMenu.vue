@@ -19,6 +19,7 @@ import { modalRename, modalShuXing } from '../../utils/modal'
 import { useSettingStore, usePanFileStore, useAppStore, usePanTreeStore } from '../../store'
 import { computed } from 'vue'
 import { MediaScanner } from '../../utils/mediaScanner'
+import MusicScanner from '../../utils/musicScanner'
 import message from '../../utils/message'
 import { isAliyunUser as isAliyunAccountUser, isBoxUser, isCloud123User, isDropboxUser, isOneDriveUser } from '../../aliapi/utils'
 import { isWebDavDrive } from '../../utils/webdavClient'
@@ -29,33 +30,61 @@ const panFileStore = usePanFileStore()
 const appStore = useAppStore()
 const panTreeStore = usePanTreeStore()
 const mediaScanner = MediaScanner.getInstance()
+const musicScanner = MusicScanner.getInstance()
 
-// 扫描媒体库方法
-const handleScanMediaLibrary = async () => {
+const pickFolderForScan = () => {
   const selectedFiles = panFileStore.GetSelected()
   if (selectedFiles.length === 0) {
     message.warning('请先选择要扫描的文件夹')
+    return null
+  }
+  const folder = selectedFiles.find((file) => file.isDir)
+  if (!folder) {
+    message.warning('请选择文件夹进行扫描')
+    return null
+  }
+  return folder
+}
+
+// 扫描视频
+const handleScanVideo = async () => {
+  const folder = pickFolderForScan()
+  if (!folder) return
+  if (mediaScanner.isCurrentlyScanning) {
+    message.warning('正在扫描中，请稍后...')
     return
   }
-
-  // 只允许扫描文件夹
-  const folders = selectedFiles.filter(file => file.isDir)
-  if (folders.length === 0) {
-    message.warning('请选择文件夹进行媒体库扫描')
-    return
-  }
-
-  // 扫描第一个选中的文件夹
-  const folder = folders[0]
   try {
-    await mediaScanner.scanFolder(folder, folder.drive_id)
-    message.success(`开始扫描文件夹 "${folder.name}" 的媒体库`)
-
-    // 切换到媒体库标签页
+    message.info(`开始扫描文件夹 "${folder.name}" 的视频文件`)
     appStore.toggleTab('media')
+    await mediaScanner.scanFolder(folder, folder.drive_id)
   } catch (error) {
-    console.error('媒体库扫描失败:', error)
-    message.error('媒体库扫描失败，请稍后重试')
+    console.error('视频扫描失败:', error)
+    message.error('视频扫描失败，请稍后重试')
+  }
+}
+
+// 扫描音频
+const handleScanAudio = async () => {
+  const folder = pickFolderForScan()
+  if (!folder) return
+  if (musicScanner.isScanning) {
+    message.warning('音频扫描进行中，请稍后...')
+    return
+  }
+  const userId = (folder as any).user_id || panTreeStore.user_id || ''
+  if (!userId) {
+    message.error('未识别到当前账号，无法扫描')
+    return
+  }
+  try {
+    message.info(`开始扫描文件夹 "${folder.name}" 的音频文件`)
+    appStore.toggleTab('music')
+    const res = await musicScanner.scanFolder(folder, userId)
+    message.success(`音频扫描完成：收录 ${res.found} 首`)
+  } catch (error) {
+    console.error('音频扫描失败:', error)
+    message.error('音频扫描失败，请稍后重试')
   }
 }
 
@@ -130,10 +159,14 @@ const isSelectedFolder = computed(() => {
         <template #default>快传</template>
       </a-doption>
 
-      <!-- 扫描媒体库 -->
-      <a-doption v-show="isSelectedFolder && isShowBtn" @click="handleScanMediaLibrary">
+      <!-- 扫描视频 / 扫描音频 -->
+      <a-doption v-show="isSelectedFolder && isShowBtn" @click="handleScanVideo">
         <template #icon><i class='iconfont iconshipin' /></template>
-        <template #default>扫描媒体库</template>
+        <template #default>扫描视频</template>
+      </a-doption>
+      <a-doption v-show="isSelectedFolder && isShowBtn" @click="handleScanAudio">
+        <template #icon><i class='iconfont iconmusic' /></template>
+        <template #default>扫描音频</template>
       </a-doption>
 
       <a-dsubmenu v-if="dirtype !== 'pic' && !isWebDav && !isThirdPartyDrive" id='rightpansubbiaoji' class='rightmenu' trigger='hover'>
