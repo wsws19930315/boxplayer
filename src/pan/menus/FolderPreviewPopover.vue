@@ -14,6 +14,7 @@ interface FolderPreviewParams {
   drive_id: string
   file_id: string
   name?: string
+  path?: string
 }
 
 const settingStore = useSettingStore()
@@ -157,7 +158,7 @@ defineExpose({ open, leave, cancel })
     @mouseleave='onPanelLeave'
     @mousedown.stop>
     <div class='folderPreviewHeader' :title='folderName'>
-      <i class='iconfont iconfile-folder' />
+      <IconFont name="iconfile-folder" />
       <span class='folderPreviewName'>{{ folderName }}</span>
     </div>
     <div class='folderPreviewBody'>
@@ -167,7 +168,7 @@ defineExpose({ open, leave, cancel })
         <div v-for='f in items' :key='f.file_id' class='folderPreviewCell' :title='f.name'>
           <div class='folderPreviewThumb'>
             <img v-if='f.thumbnail' :src='f.thumbnail' onerror="this.style.display='none'" />
-            <i v-else :class="'iconfont ' + (f.icon || (f.isDir ? 'iconfile-folder' : 'iconwenjian'))" aria-hidden='true' />
+            <IconFont :name="(f.icon || (f.isDir ? 'iconfile-folder' : 'iconwenjian'))" v-else aria-hidden='true' />
             <span v-if="f.category && f.category.toString().startsWith('video')" class='folderPreviewPlay'>
               <svg viewBox='0 0 1024 1024'>
                 <path d='M689.066667 480l-196.266667-177.066667c-27.733333-25.6-70.4-6.4-70.4 32v356.266667c0 36.266667 44.8 55.466667 70.4 32l196.266667-177.066667c17.066667-19.2 17.066667-49.066667 0-66.133333z'></path>

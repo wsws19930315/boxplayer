@@ -234,7 +234,8 @@ const onTreeNodeEnter = (ev: MouseEvent, data: TreeNodeData) => {
     user_id: userId,
     drive_id: driveId,
     file_id: data.key,
-    name: data.title
+    name: data.title,
+    path: (data as any).path || ''
   })
 }
 
@@ -287,7 +288,7 @@ const onTreeScroll = () => {
               <i class='ant-tree-switcher-icon iconfont Arrow' />
             </template>
             <template #icon>
-              <i class='iconfont iconfile-folder' />
+              <IconFont name="iconfile-folder" />
             </template>
             <template #title='{ dataRef }'>
               <span v-if="String(dataRef.key).length == 40 || String(dataRef.key).includes('root')"
@@ -326,7 +327,7 @@ const onTreeScroll = () => {
             :tree-data='colorTreeData'
             @select='(_:any[],e:any)=>pantreeStore.mTreeSelected(e, true)'>
             <template #icon='{ dataRef }'>
-              <i class='iconfont iconwbiaoqian' :class='dataRef.namesearch' />
+              <IconFont name="iconwbiaoqian" :class='dataRef.namesearch' />
             </template>
             <template #title='{ dataRef }'>
               <span :class="'dirtitle ' + dataRef.namesearch">标记 · {{ dataRef.title }}</span>
@@ -357,7 +358,7 @@ const onTreeScroll = () => {
             :tree-data='pantreeStore.quickData'
             @select='(_:any[],e:any)=>pantreeStore.mTreeSelected(e, true)'>
             <template #icon>
-              <i class='iconfont iconfile-folder' />
+              <IconFont name="iconfile-folder" />
             </template>
             <template #title='{ dataRef }'>
               <div class="quickitem"

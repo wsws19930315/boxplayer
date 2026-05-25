@@ -1,5 +1,6 @@
 <script setup lang='ts'>
 import { computed, onMounted, ref } from 'vue'
+import { House, ListMusic, Mic2, Disc3, Folder, Heart, Music, User, RefreshCw, X } from 'lucide-vue-next'
 import useMusicLibraryStore, { type MusicSubTab } from '../store/musiclibrary'
 import useSettingStore from '../setting/settingstore'
 import { IMusicTrack } from '../types/music'
@@ -11,13 +12,14 @@ import message from '../utils/message'
 const musicStore = useMusicLibraryStore()
 const settingStore = useSettingStore()
 
-const subTabs: { key: MusicSubTab; label: string; icon: string }[] = [
-  { key: 'home', label: '首页', icon: 'icontuijian' },
-  { key: 'all', label: '全部', icon: 'iconlist' },
-  { key: 'artists', label: '艺人', icon: 'iconuser' },
-  { key: 'albums', label: '专辑', icon: 'iconfile-audio' },
-  { key: 'folders', label: '文件夹', icon: 'iconfolder' },
-  { key: 'fav', label: '收藏', icon: 'iconcrown3' }
+type LucideIconComponent = typeof House
+const subTabs: { key: MusicSubTab; label: string; icon: LucideIconComponent }[] = [
+  { key: 'home', label: '首页', icon: House },
+  { key: 'all', label: '全部', icon: ListMusic },
+  { key: 'artists', label: '艺人', icon: Mic2 },
+  { key: 'albums', label: '专辑', icon: Disc3 },
+  { key: 'folders', label: '文件夹', icon: Folder },
+  { key: 'fav', label: '收藏', icon: Heart }
 ]
 
 const searchQuery = ref('')
@@ -171,11 +173,11 @@ onMounted(async () => {
           style='width: 280px; margin-right: 12px'
         />
         <a-button v-if='!musicStore.isScanning' type='primary' @click='startScan'>
-          <template #icon><i class='iconfont iconrefresh' /></template>
+          <template #icon><RefreshCw :size='14' :stroke-width='1.8' /></template>
           扫描
         </a-button>
         <a-button v-else status='warning' @click='stopScan'>
-          <template #icon><i class='iconfont iconclose' /></template>
+          <template #icon><X :size='14' :stroke-width='1.8' /></template>
           停止
         </a-button>
         <a-tooltip content='每次启动 App 静默扫描音频；间隔由设置控制' position='bottom'>
@@ -210,7 +212,7 @@ onMounted(async () => {
           :class="{ active: musicStore.subTab === tab.key }"
           @click='selectTab(tab.key)'
         >
-          <i class='iconfont' :class='tab.icon' />
+          <component :is='tab.icon' :size='18' :stroke-width='1.8' class='ml-nav-icon' />
           <span class='ml-nav-label'>{{ tab.label }}</span>
         </div>
       </aside>
@@ -220,7 +222,7 @@ onMounted(async () => {
       <div v-if="musicStore.subTab === 'home'" class='ml-section-wrap'>
         <a-empty v-if='!musicStore.totalCount' description='暂无音乐，点击右上角“扫描”开始收录'>
           <template #image>
-            <i class='iconfont iconmusic' style='font-size: 56px; color: var(--color-text-3)' />
+            <Music :size='56' :stroke-width='1.5' style='color: var(--color-text-3)' />
           </template>
         </a-empty>
         <template v-else>
@@ -238,7 +240,7 @@ onMounted(async () => {
               >
                 <div class='ml-card-cover'>
                   <img v-if='t.cover_url || t.thumbnail' :src='t.cover_url || t.thumbnail' alt='' />
-                  <i v-else class='iconfont iconmusic'></i>
+                  <Music v-else :size='36' :stroke-width='1.5' />
                 </div>
                 <div class='ml-card-title' :title='t.title || t.file_name'>{{ t.title || t.file_name }}</div>
                 <div class='ml-card-sub' :title='t.artist'>{{ t.artist || '未知艺人' }}</div>
@@ -250,7 +252,7 @@ onMounted(async () => {
             <div class='ml-section-head'>
               <div class='ml-section-title'>随机推荐</div>
               <a-button type='text' size='mini' @click='musicStore.rerollRandom()'>
-                <template #icon><i class='iconfont iconrefresh' /></template>
+                <template #icon><RefreshCw :size='12' :stroke-width='1.8' /></template>
                 换一批
               </a-button>
             </div>
@@ -263,7 +265,7 @@ onMounted(async () => {
               >
                 <div class='ml-card-cover'>
                   <img v-if='t.cover_url || t.thumbnail' :src='t.cover_url || t.thumbnail' alt='' />
-                  <i v-else class='iconfont iconmusic'></i>
+                  <Music v-else :size='36' :stroke-width='1.5' />
                 </div>
                 <div class='ml-card-title' :title='t.title || t.file_name'>{{ t.title || t.file_name }}</div>
                 <div class='ml-card-sub' :title='t.artist'>{{ t.artist || '未知艺人' }}</div>
@@ -288,7 +290,7 @@ onMounted(async () => {
             <div class='ml-track-idx'>{{ i + 1 }}</div>
             <div class='ml-track-cover'>
               <img v-if='t.cover_url || t.thumbnail' :src='t.cover_url || t.thumbnail' alt='' />
-              <i v-else class='iconfont iconmusic'></i>
+              <Music v-else :size='18' :stroke-width='1.5' />
             </div>
             <div class='ml-track-main'>
               <div class='ml-track-title' :title='t.title || t.file_name'>{{ t.title || t.file_name }}</div>
@@ -311,7 +313,7 @@ onMounted(async () => {
           >
             <div class='ml-card-cover round'>
               <img v-if='artistCover(g)' :src='artistCover(g)' alt='' />
-              <i v-else class='iconfont iconuser'></i>
+              <User v-else :size='36' :stroke-width='1.5' />
             </div>
             <div class='ml-card-title' :title='g.artist'>{{ g.artist }}</div>
             <div class='ml-card-sub'>{{ g.count }} 首</div>
@@ -335,7 +337,7 @@ onMounted(async () => {
                 :src='g.items[0].cover_url || g.items[0].thumbnail'
                 alt=''
               />
-              <i v-else class='iconfont iconmusic'></i>
+              <Music v-else :size='36' :stroke-width='1.5' />
             </div>
             <div class='ml-card-title' :title='g.album'>{{ g.album }}</div>
             <div class='ml-card-sub'>{{ g.count }} 首</div>
@@ -354,7 +356,7 @@ onMounted(async () => {
             @click='playFromList(g.items, g.items[0])'
           >
             <div class='ml-card-cover folder'>
-              <i class='iconfont iconfolder'></i>
+              <Folder :size='36' :stroke-width='1.5' />
             </div>
             <div class='ml-card-title' :title='g.path'>{{ g.name }}</div>
             <div class='ml-card-sub'>{{ g.count }} 首</div>
@@ -377,7 +379,7 @@ onMounted(async () => {
             <div class='ml-track-idx'>{{ i + 1 }}</div>
             <div class='ml-track-cover'>
               <img v-if='t.cover_url || t.thumbnail' :src='t.cover_url || t.thumbnail' alt='' />
-              <i v-else class='iconfont iconmusic'></i>
+              <Music v-else :size='18' :stroke-width='1.5' />
             </div>
             <div class='ml-track-main'>
               <div class='ml-track-title' :title='t.title || t.file_name'>{{ t.title || t.file_name }}</div>
@@ -494,10 +496,10 @@ onMounted(async () => {
   transition: background-color 0.15s, color 0.15s;
 }
 
-.ml-nav-item .iconfont {
-  font-size: 16px;
+.ml-nav-item .ml-nav-icon {
   width: 18px;
-  text-align: center;
+  height: 18px;
+  flex-shrink: 0;
   opacity: 0.85;
 }
 
@@ -511,7 +513,7 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.ml-nav-item.active .iconfont {
+.ml-nav-item.active .ml-nav-icon {
   opacity: 1;
 }
 

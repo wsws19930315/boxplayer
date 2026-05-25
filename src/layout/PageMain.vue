@@ -13,6 +13,7 @@ import {
 } from '../store'
 import useMusicLibraryStore from '../store/musiclibrary'
 import { useMediaLibraryStore } from '../store/medialibrary'
+import { Music, Video } from 'lucide-vue-next'
 import { onHideRightMenu, TestAlt, TestCtrl, TestKey, TestShift } from '../utils/keyboardhelper'
 import { copyToClipboard, openExternal } from '../utils/electronhelper'
 import { bootstrapMusicLibrary, shutdownMusicLibrary } from '../utils/musicLibraryBootstrap'
@@ -243,12 +244,12 @@ onUnmounted(() => {
     <a-layout-header id='xbyhead' draggable='false'>
       <div id='xbyhead2' class='q-electron-drag'>
         <a-button v-show="appStore.appTab === 'pan'" type='text' size='small' @click='handlePanVisible'>
-          <i class='iconfont iconmenuon' v-if='panVisible' />
-          <i class='iconfont iconmenuoff' v-else />
+          <IconFont name="iconmenuon" v-if='panVisible' />
+          <IconFont name="iconmenuoff" v-else />
         </a-button>
         <a-button v-show="appStore.appTab === 'media' || appStore.appTab === 'media-server'" type='text' size='small' @click='handleMediaNavVisible'>
-          <i class='iconfont iconmenuon' v-if='mediaNavVisible' />
-          <i class='iconfont iconmenuoff' v-else />
+          <IconFont name="iconmenuon" v-if='mediaNavVisible' />
+          <IconFont name="iconmenuoff" v-else />
         </a-button>
         <div class='title'>BoxPlayer</div>
 
@@ -268,22 +269,21 @@ onUnmounted(() => {
         <UserInfo />
         <UserLogin />
         <a-button type='text' tabindex='-1' style="margin-right: 5px" :title='themeTitle' @click="handleThemeClick">
-          <i class='iconfont iconnight'
-             v-if="appStore.appTheme === 'dark' || (appStore.appTheme == 'system' && appStore.appDark)"></i>
-          <i class='iconfont iconday' v-else></i>
+          <IconFont name="iconnight" v-if="appStore.appTheme === 'dark' || (appStore.appTheme == 'system' && appStore.appDark)" />
+          <IconFont name="iconday" v-else />
         </a-button>
         <a-button type='text' tabindex='-1' title='设置 Alt+7' :class="appStore.appTab == 'setting' ? 'active' : ''"
                   @click="appStore.toggleTab('setting')">
-          <i class='iconfont iconsetting'></i>
+          <IconFont name="iconsetting" />
         </a-button>
         <a-button type='text' tabindex='-1' title='最小化 Alt+M' @click='handleMinClick'>
-          <i class='iconfont iconzuixiaohua'></i>
+          <IconFont name="iconzuixiaohua" />
         </a-button>
         <a-button type='text' tabindex='-1' title='最大化 Alt+Enter' @click='handleMaxClick'>
-          <i class='iconfont iconfullscreen'></i>
+          <IconFont name="iconfullscreen" />
         </a-button>
         <a-button type='text' tabindex='-1' title='关闭 Alt+F4' @click='handleHideClick'>
-          <i class='iconfont iconclose'></i>
+          <IconFont name="iconclose" />
         </a-button>
       </div>
     </a-layout-header>
@@ -339,7 +339,7 @@ onUnmounted(() => {
           :title='musicStore.scanLabel || "正在扫描音乐库"'
           @click='handleMusicLibraryClick'
         >
-          <i class='iconfont iconmusic music-scan-spin' />
+          <Music :size="14" :stroke-width="1.8" class="music-scan-spin" />
           <span class='music-scan-text'>
             {{ musicStore.scanLabel || '正在扫描音乐库' }} · {{ musicStore.scanFound }} 首
           </span>
@@ -351,7 +351,7 @@ onUnmounted(() => {
           :title='`正在扫描视频媒体库 ${mediaStore.scanProgress}/${mediaStore.scanTotal}`'
           @click='handleMediaLibraryClick'
         >
-          <i class='iconfont iconvideo music-scan-spin' />
+          <Video :size="14" :stroke-width="1.8" class="music-scan-spin" />
           <span class='music-scan-text'>
             视频媒体库扫描 {{ mediaStore.scanProgress }}/{{ mediaStore.scanTotal }}
           </span>
@@ -369,25 +369,25 @@ onUnmounted(() => {
           </div>
           <div v-if='footStore.audioUrl' class='footerBar fix' title='关闭音频预览' style='cursor: pointer'
                @click.stop='handleAudioStop()'>
-            <i class='iconfont iconclose' />
+            <IconFont name="iconclose" />
           </div>
 
           <div class='footerBar fix' v-show='footStore.uploadTotalSpeed'>
-            <i class='iconfont iconshangchuansudu' />
+            <IconFont name="iconshangchuansudu" />
             <span id='footUploadSpeed' class='footspeedstr'>
               {{ footStore.uploadTotalSpeed }}
             </span>
           </div>
 
           <div class='footerBar fix' v-show='footStore.downloadTotalSpeed'>
-            <i class='iconfont iconxiazaisudu' />
+            <IconFont name="iconxiazaisudu" />
             <span id='footDownSpeed' class='footspeedstr'>
               {{ footStore.downloadTotalSpeed }}
             </span>
           </div>
 
           <div class='footerBar fix' v-show='footStore.updateDownloadProgress > 0 && footStore.updateDownloadProgress < 100'>
-            <i class='iconfont iconxiazaisudu' />
+            <IconFont name="iconxiazaisudu" />
             <span class='footspeedstr'>新版本 {{ footStore.updateDownloadProgress }}%</span>
           </div>
 
@@ -399,7 +399,7 @@ onUnmounted(() => {
           <a-popover v-model:popup-visible='footStore.taskVisible' trigger='click' position='top' class='asynclist'>
             <div class='footerBar fix' style='cursor: pointer'>
               <span :class="footStore.GetIsRunning ? 'shake' : ''">
-                <i class='iconfont icontongzhiblue' />
+                <IconFont name="icontongzhiblue" />
               </span>
               <span>异步通知</span>
             </div>
@@ -427,11 +427,11 @@ onUnmounted(() => {
                     </div>
                     <div v-else class='asynclistitem-name' :title='item.title'>{{ item.title }}</div>
                     <span v-if="item.status == 'running'" class='asynclistitem-progress asynclistitem-icon-running'
-                          title='执行中'><i class='iconfont iconhourglass' />{{ item.usetime }}</span>
+                          title='执行中'><IconFont name="iconhourglass" />{{ item.usetime }}</span>
                     <span v-if="item.status == 'success'" class='asynclistitem-progress asynclistitem-icon-success'
-                          title='成功'><i class='iconfont iconcheck' />{{ item.usetime }}</span>
+                          title='成功'><IconFont name="iconcheck" />{{ item.usetime }}</span>
                     <span v-if="item.status == 'error'" class='asynclistitem-progress asynclistitem-icon-error'
-                          title='失败'><i class='iconfont iconclose' />{{ item.usetime }}</span>
+                          title='失败'><IconFont name="iconclose" />{{ item.usetime }}</span>
                   </div>
                   <div class='asynclistitem-operation'>
                     <a-button type='text' size='mini' @click.stop='handleAsyncDelete(item.key)'>删除</a-button>
@@ -443,7 +443,7 @@ onUnmounted(() => {
           </a-popover>
           <a-popover trigger='hover' position='top' class='sponsor-popover'>
             <div class='footerBar fix footer-sponsor-button' title='赞助 APP'>
-              <i class='iconfont iconbiaozhang' />
+              <IconFont name="iconbiaozhang" />
               <span>赞助 APP</span>
             </div>
             <template #content>
@@ -468,14 +468,14 @@ onUnmounted(() => {
                   title='复制加密货币捐赠地址'
                   @click='handleCopyCryptoDonationAddress'
                 >
-                  <template #icon><i class='iconfont iconcopy' /></template>
+                  <template #icon><IconFont name="iconcopy" /></template>
                   复制地址
                 </a-button>
               </div>
             </template>
           </a-popover>
           <div class='footerBar fix' style='margin: 0; cursor: pointer' @click='handleHelpPage'>
-            <i class='iconfont iconrss' />
+            <IconFont name="iconrss" />
             项目地址
           </div>
         </div>
@@ -547,8 +547,11 @@ onUnmounted(() => {
   background-color: var(--color-fill-2);
 }
 
-#xbyhead2 .iconfont {
+#xbyhead2 .iconfont,
+#xbyhead2 .iconfont-svg {
   font-size: 24px;
+  width: 24px;
+  height: 24px;
 }
 
 .sponsor-popover .arco-popover-popup-content {
@@ -924,8 +927,8 @@ body[arco-theme='dark'] #footer2 audio::-webkit-media-controls-time-remaining-di
   opacity: 1;
 }
 
-.music-scan-foot .iconfont.music-scan-spin {
-  font-size: 12px;
+.music-scan-foot .music-scan-spin {
+  flex-shrink: 0;
   animation: music-scan-rotate 2.4s linear infinite;
 }
 

@@ -53,6 +53,8 @@ window.addEventListener('unhandledrejection', function (event) {
 })
 
 const app = createApp(App)
+import IconFont from './components/IconFont.vue'
+app.component('IconFont', IconFont)
 app.config.errorHandler = function (err: any, vm, info) {
   try {
     if (typeof err === 'string') {

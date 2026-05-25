@@ -8,28 +8,28 @@
     <div style="position: fixed; pointer-events: none; width: 1px; height: 1px;" />
     <template #content>
       <a-doption @click="handleAddToLibrary" v-if="!isInLibrary && !isMediaLibraryFolder">
-        <template #icon><i class='iconfont iconstar' /></template>
+        <template #icon><IconFont name="iconstar" /></template>
         <template #default>添加到媒体库</template>
       </a-doption>
 
       <a-doption @click="handleScanVideo" v-if="selectedItem?.isdir && !isMediaLibraryFolder">
-        <template #icon><i class='iconfont iconshipin' /></template>
+        <template #icon><IconFont name="iconshipin" /></template>
         <template #default>扫描视频</template>
       </a-doption>
 
       <a-doption @click="handleScanAudio" v-if="selectedItem?.isdir && !isMediaLibraryFolder">
-        <template #icon><i class='iconfont iconmusic' /></template>
+        <template #icon><IconFont name="iconmusic" /></template>
         <template #default>扫描音频</template>
       </a-doption>
 
       <a-doption @click="handleViewInLibrary" v-if="isInLibrary && !isMediaLibraryFolder">
-        <template #icon><i class='iconfont iconmovie' /></template>
+        <template #icon><IconFont name="iconmovie" /></template>
         <template #default>在媒体库中查看</template>
       </a-doption>
 
       <!-- 媒体库文件夹删除选项 -->
       <a-doption @click="handleRemoveFromLibrary" v-if="isInLibrary || isMediaLibraryFolder" class="danger">
-        <template #icon><i class='iconfont icondelete' /></template>
+        <template #icon><IconFont name="icondelete" /></template>
         <template #default>从媒体库删除</template>
       </a-doption>
     </template>

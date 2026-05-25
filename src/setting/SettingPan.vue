@@ -110,7 +110,7 @@ const showAccountList = computed(() =>
     <div class="settingrow">
       <MySwitch :value="settingStore.uiFolderPreviewEnabled" @update:value="cb({ uiFolderPreviewEnabled: $event })">鼠标悬停文件夹时，弹出窗口预览文件夹内的文件</MySwitch>
       <a-popover position="bottom">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div>
             默认：<span class="opred">开启</span>
@@ -134,7 +134,7 @@ const showAccountList = computed(() =>
         <a-option :value="20">20 秒</a-option>
       </a-select>
       <a-popover position="bottom">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div>
             预览面板出现后，过这段时间会自动消失<br />
@@ -148,7 +148,7 @@ const showAccountList = computed(() =>
     <div class="settingrow">
       <MySwitch :value="settingStore.uiFolderSize" @update:value="cb({ uiFolderSize: $event })">自动统计并显示文件夹的总体积</MySwitch>
       <a-popover position="bottom">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div>
             默认：<span class="opred">开启</span>
@@ -164,9 +164,9 @@ const showAccountList = computed(() =>
     <div class="settingspace"></div>
     <div class="settinghead">媒体库后台自动扫描</div>
     <div class="settingrow">
-      <MySwitch :value="settingStore.uiLibraryAutoScanMusic" @update:value="cb({ uiLibraryAutoScanMusic: $event })">音乐库：启动后静默扫描所有网盘的音频文件</MySwitch>
+      <MySwitch :value="settingStore.uiLibraryAutoScanMusic" @update:value="cb({ uiLibraryAutoScanMusic: $event })">音乐库：启动后后台刮削网盘内的音频文件</MySwitch>
       <a-popover position="bottom">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div>
             默认：<span class="opred">关闭</span>
@@ -179,9 +179,9 @@ const showAccountList = computed(() =>
       </a-popover>
     </div>
     <div class="settingrow">
-      <MySwitch :value="settingStore.uiLibraryAutoScanVideo" @update:value="cb({ uiLibraryAutoScanVideo: $event })">视频媒体库：启动后静默重扫已加入媒体库的所有文件夹</MySwitch>
+      <MySwitch :value="settingStore.uiLibraryAutoScanVideo" @update:value="cb({ uiLibraryAutoScanVideo: $event })">视频媒体库：启动后后台刮削网盘内的视频文件</MySwitch>
       <a-popover position="bottom">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div>
             默认：<span class="opred">关闭</span>
@@ -195,7 +195,7 @@ const showAccountList = computed(() =>
     <div v-if="settingStore.uiLibraryAutoScanMusic || settingStore.uiLibraryAutoScanVideo" class="settingrow">
       <MySwitch :value="settingStore.uiLibraryIncrementalScan" @update:value="cb({ uiLibraryIncrementalScan: $event })">仅扫描增量（建议开启，按时间间隔节流，避免每次启动重跑）</MySwitch>
       <a-popover position="bottom">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div>
             默认：<span class="opred">开启</span>
@@ -221,9 +221,9 @@ const showAccountList = computed(() =>
       </a-select>
     </div>
     <div class="settingrow">
-      <MySwitch :value="settingStore.uiLibraryFollowManualScans" @update:value="cb({ uiLibraryFollowManualScans: $event })">手动扫描过的文件夹也自动加入下次扫描队列（推荐）</MySwitch>
+      <MySwitch :value="settingStore.uiLibraryFollowManualScans" @update:value="cb({ uiLibraryFollowManualScans: $event })">媒体源文件夹自动更新（推荐）</MySwitch>
       <a-popover position="bottom">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div>
             默认：<span class="opred">开启</span>
@@ -302,7 +302,7 @@ const showAccountList = computed(() =>
       <a-input-number tabindex="-1" :style="{ width: '100px', marginLeft: '16px', marginTop: '-1px' }" :min="1" :model-value="settingStore.uiTimeFolderIndex" @update:model-value="cb({ uiTimeFolderIndex: $event })" />
 
       <a-popover position="bottom">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div style="min-width: 400px">
             默认：<span class="opred">默认yyyy-MM-dd HH-mm-ss</span>(2021-08-08 12-30-00)
@@ -342,7 +342,7 @@ const showAccountList = computed(() =>
       </a-radio-group>
 
       <a-popover position="bottom">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div>
             默认：<span class="opred">永久</span>，<span class="opred">随机</span>
@@ -370,7 +370,7 @@ const showAccountList = computed(() =>
       <a-input tabindex="-1" :style="{ width: '257px' }" placeholder="「NAME」URL 提取码：PWD" allow-clear :model-value="settingStore.uiShareFormate" @update:model-value="cb({ uiShareFormate: $event })" />
 
       <a-popover position="bottom">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div style="min-width: 400px">
             默认：<span class="opred">「NAME」URL 提取码：PWD</span> <br />
@@ -395,7 +395,7 @@ const showAccountList = computed(() =>
     <div class="settinghead">
       文件标记 自定义标签名
       <a-popover position="right">
-        <i class="iconfont iconbulb" />
+        <IconFont name="iconbulb" />
         <template #content>
           <div>
             给文件打上标签，便于分类和快速访问<br />
@@ -411,7 +411,7 @@ const showAccountList = computed(() =>
     <div class="settingrow">
       <a-row class="grid-demo">
         <a-col v-for="item in settingStore.uiFileColorArray" :key="item.key" flex="210px">
-          <span style="width: 82px; display: inline-block"><i class="iconfont iconcheckbox-full" :style="{ color: item.key }" />{{ item.key }}</span>
+          <span style="width: 82px; display: inline-block"><IconFont name="iconcheckbox-full" :style="{ color: item.key }" />{{ item.key }}</span>
           <a-input :style="{ width: '120px' }" allow-clear :model-value="item.title" @update:model-value="(val:string)=>settingStore.updateFileColor(item.key,val)"> </a-input>
         </a-col>
       </a-row>

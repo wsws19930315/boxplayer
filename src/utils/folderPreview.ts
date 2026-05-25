@@ -2,10 +2,12 @@ import { IAliGetFileModel } from '../aliapi/alimodels'
 import AliDirFileList from '../aliapi/dirfilelist'
 import {
   isAliyunUser,
+  isBaiduUser,
   isBoxUser,
   isCloud123User,
   isDrive115User,
-  isOneDriveUser
+  isOneDriveUser,
+  isPikPakUser
 } from '../aliapi/utils'
 import DebugLog from './debuglog'
 
@@ -14,6 +16,7 @@ export interface FolderPreviewParams {
   drive_id: string
   file_id: string
   name?: string
+  path?: string
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000
@@ -39,10 +42,34 @@ const tryDynamicImport = async <T>(loader: () => Promise<T>): Promise<T | null> 
 }
 
 async function fetchFolderItemsRaw(p: FolderPreviewParams): Promise<IAliGetFileModel[]> {
-  const { user_id, drive_id, file_id, name } = p
+  const { user_id, drive_id, file_id, name, path } = p
   if (!user_id || !drive_id || !file_id) return []
 
   try {
+    if (isBaiduUser(user_id) || drive_id === 'baidu') {
+      const mod = await tryDynamicImport(() => import('../cloudbaidu/dirfilelist'))
+      if (!mod) return []
+      // 百度网盘的目录列表 API 用路径而非 fs_id
+      const dir = path && path.length ? path : (file_id === '/' ? '/' : path || '/')
+      const list = await mod.apiBaiduFileList(user_id, dir, 'name', 0, MAX_PREVIEW_FILES, 0)
+      return (list || []).map((item: any) => {
+        const mapped = mod.mapBaiduFileToAliModel(item, drive_id, dir)
+        ;(mapped as any).user_id = user_id
+        return mapped
+      })
+    }
+    if (isPikPakUser(user_id) || drive_id === 'pikpak') {
+      const mod = await tryDynamicImport(() => import('../pikpak/dirfilelist'))
+      if (!mod) return []
+      const parentId = file_id === 'pikpak_root' ? '' : file_id
+      const resp = await mod.apiPikPakFileList(user_id, parentId, MAX_PREVIEW_FILES)
+      const items = resp?.items || []
+      return items.map((item: any) => {
+        const mapped = mod.mapPikPakFileToAliModel(item, drive_id, parentId)
+        ;(mapped as any).user_id = user_id
+        return mapped
+      })
+    }
     if (isCloud123User(user_id) || drive_id === 'cloud123') {
       const mod = await tryDynamicImport(() => import('../cloud123/dirfilelist'))
       if (!mod) return []

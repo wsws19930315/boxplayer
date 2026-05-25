@@ -1,7 +1,7 @@
 {
   "name": "BoxPlayer",
   "description": "BoxPlayer",
-  "version": "4.0.12",
+  "version": "4.0.13",
   "main": "dist/electron/main/index.js",
   "author": {
     "name": "gaozhangmin",
@@ -115,16 +115,7 @@
     "webdav": "5.9.0",
     "webdav-server": "^2.6.2",
     "whacko": "^0.19.1",
-    "xlsx": "^0.18.5",
-    "builder-util-runtime": "^9.5.1",
-    "electron-updater": "^6.8.3",
-    "fs-extra": "^10.1.0",
-    "js-yaml": "^4.1.1",
-    "lazy-val": "^1.0.5",
-    "lodash.escaperegexp": "^4.1.2",
-    "lodash.isequal": "^4.5.0",
-    "semver": "^7.6.0",
-    "tiny-typed-emitter": "^2.1.0"
+    "xlsx": "^0.18.5"
   },
   "debug": {
     "env": {
@@ -142,6 +133,16 @@
     "vue"
   ],
   "dependencies": {
-    "qrcode-terminal": "^0.12.0"
+    "builder-util-runtime": "^9.5.1",
+    "electron-updater": "^6.8.3",
+    "fs-extra": "10.1.0",
+    "js-yaml": "^4.1.1",
+    "lazy-val": "^1.0.5",
+    "lodash.escaperegexp": "^4.1.2",
+    "lodash.isequal": "^4.5.0",
+    "lucide-vue-next": "^1.0.0",
+    "qrcode-terminal": "^0.12.0",
+    "semver": "^7.6.0",
+    "tiny-typed-emitter": "^2.1.0"
   }
 }

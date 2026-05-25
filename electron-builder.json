@@ -41,6 +41,7 @@
     "notarize": false
   },
   "linux": {
+    "executableName": "boxplayer",
     "icon": "./static/images/icon_256x256.png",
     "category": "Network",
     "artifactName": "boxplayer-${version}-linux-${arch}.${ext}",

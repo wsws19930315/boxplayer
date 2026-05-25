@@ -1,5 +1,6 @@
 <script setup lang='ts'>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { SkipBack, SkipForward, Pause, Play, FileText, Music, Search, X, RotateCw, List, Maximize2, Minus } from 'lucide-vue-next'
 import { KeyboardState, useAppStore, useKeyboardStore } from '../store'
 import message from '../utils/message'
 import { TestAlt, TestKey, TestShift } from '../utils/keyboardhelper'
@@ -682,21 +683,21 @@ onBeforeUnmount(() => {
     <a-layout-header id='xbyhead' draggable='false' class='musicHeader'>
       <div id='xbyhead2' class='q-electron-drag'>
         <a-button type='text' tabindex='-1'>
-          <i class='iconfont iconfile-audio'></i>
+          <Music :size='16' :stroke-width='1.8' />
         </a-button>
         <div class='title'>{{ currentTrack?.file_name || '音乐播放器' }}</div>
         <div class='flexauto'></div>
         <a-button type='text' tabindex='-1' :title="(isTop ? '取消置顶' : '置顶')" @click='handleTop'>
-          <i :class="'iconfont ' + (isTop ? 'iconquxiaozhiding' : 'iconzhiding')" />
+          <IconFont :name="(isTop ? 'iconquxiaozhiding' : 'iconzhiding')" />
         </a-button>
         <a-button type='text' tabindex='-1' title='最小化 Alt+M' @click='handleMinClick'>
-          <i class='iconfont iconzuixiaohua'></i>
+          <Minus :size='16' :stroke-width='1.8' />
         </a-button>
         <a-button type='text' tabindex='-1' title='最大化 Alt+Enter' @click='handleMaxClick'>
-          <i class='iconfont iconfullscreen'></i>
+          <Maximize2 :size='14' :stroke-width='1.8' />
         </a-button>
         <a-button type='text' tabindex='-1' title='关闭 Alt+F4' @click='handleHideClick'>
-          <i class='iconfont iconclose'></i>
+          <X :size='16' :stroke-width='1.8' />
         </a-button>
       </div>
     </a-layout-header>
@@ -704,11 +705,11 @@ onBeforeUnmount(() => {
     <div class='musicTabs'>
       <div class='musicTabsLeft'>
         <button :class="{ musicTabBtn: 1, active: activeTab === 'now' }" @click="activeTab = 'now'">
-          <i class='iconfont iconfile-audio musicTabIcon' />
+          <Music :size='16' :stroke-width='1.8' class='musicTabIcon' />
           <span>正在播放</span>
         </button>
         <button :class="{ musicTabBtn: 1, active: activeTab === 'queue' }" @click="activeTab = 'queue'">
-          <i class='iconfont iconliebiaomoshi musicTabIcon' />
+          <List :size='16' :stroke-width='1.8' class='musicTabIcon' />
           <span>播放列表</span>
           <span class='musicTabBadge'>{{ playlist.length }}</span>
         </button>
@@ -720,16 +721,16 @@ onBeforeUnmount(() => {
           <span class='musicTabBadge'>{{ favorites.length }}</span>
         </button>
         <button :class="{ musicTabBtn: 1, active: activeTab === 'recent' }" @click="activeTab = 'recent'">
-          <i class='iconfont iconreload-1-icon musicTabIcon' />
+          <RotateCw :size='16' :stroke-width='1.8' class='musicTabIcon' />
           <span>最近播放</span>
         </button>
       </div>
       <div v-if="activeTab !== 'now'" class='musicTabsRight'>
         <div class='musicSearch'>
-          <i class='iconfont iconsearch musicSearchIcon' />
+          <Search :size='14' :stroke-width='1.8' class='musicSearchIcon' />
           <input v-model='listFilter' placeholder='搜索曲名…' class='musicSearchInput' />
           <button v-if='listFilter' class='musicSearchClear' @click="listFilter = ''" title='清空'>
-            <i class='iconfont iconclose'></i>
+            <X :size='14' :stroke-width='2' />
           </button>
         </div>
         <a-button v-if="activeTab === 'recent' && recents.length"
@@ -749,7 +750,7 @@ onBeforeUnmount(() => {
                 <img v-if='coverUrl' :src='coverUrl'
                      @error="(e:any)=>{ e.currentTarget.style.display='none' }" />
                 <div v-else class='musicCoverFallback'>
-                  <i class='iconfont iconfile-audio' />
+                  <IconFont name="iconfile-audio" />
                 </div>
               </div>
               <div class='musicVinylCenter'></div>
@@ -814,7 +815,7 @@ onBeforeUnmount(() => {
               <div class='musicListThumb'>
                 <img v-if='t.thumbnail' :src='t.thumbnail'
                      @error="(e:any)=>{ e.currentTarget.style.display='none' }" />
-                <i v-else class='iconfont iconfile-audio'></i>
+                <IconFont name="iconfile-audio" v-else />
               </div>
               <div class='musicListMeta'>
                 <div class='musicListName' :title='t.file_name'>{{ stripExt(t.file_name) }}</div>
@@ -832,7 +833,7 @@ onBeforeUnmount(() => {
                   </svg>
                 </button>
                 <button v-if="activeTab === 'fav'" class='musicIconBtn' title='移除' @click='removeFavorite(t)'>
-                  <i class='iconfont iconclose'></i>
+                  <IconFont name="iconclose" />
                 </button>
               </div>
             </div>
@@ -848,7 +849,7 @@ onBeforeUnmount(() => {
           <img v-if='coverUrl' :src='coverUrl'
                @error="(e:any)=>{ e.currentTarget.style.display='none' }" />
           <div v-else class='musicMiniCoverFallback'>
-            <i class='iconfont iconfile-audio' />
+            <IconFont name="iconfile-audio" />
           </div>
         </div>
         <div class='musicMiniMeta'>
@@ -871,25 +872,23 @@ onBeforeUnmount(() => {
       <div class='musicBottomCenter'>
         <div class='musicBottomCtrls'>
           <a-button type='text' shape='circle' :title='playModeText' @click='cyclePlayMode'>
-            <i :class="'iconfont ' + playModeIcon" />
+            <IconFont :name="playModeIcon" />
             <span class='musicModeBadge' v-if="playMode === 'loop-one'">1</span>
           </a-button>
           <a-button type='text' shape='circle' title='上一首 (Shift+Left)' @click='playPrev'>
-            <i class='iconfont iconarrow-left-2-icon'></i>
+            <SkipBack :size='18' :stroke-width='1.8' />
           </a-button>
           <a-button class='musicPlayBtn' type='primary' shape='circle' @click='togglePlay'
                     :title="isPlaying ? '暂停 (Space)' : '播放 (Space)'">
-            <i v-if='isPlaying' class='iconfont iconpause' />
-            <svg v-else class='musicPlayIcon' viewBox='0 0 1024 1024'>
-              <path d='M276 154.7v714.6c0 25.1 27.6 40.4 49 27.1l570.7-357.3c20.1-12.6 20.1-41.7 0-54.3L325 127.6c-21.4-13.3-49 2-49 27.1z' />
-            </svg>
+            <Pause v-if='isPlaying' :size='22' :stroke-width='2' :fill="'currentColor'" />
+            <Play v-else :size='22' :stroke-width='2' :fill="'currentColor'" />
           </a-button>
           <a-button type='text' shape='circle' title='下一首 (Shift+Right)' @click='playNext(false)'>
-            <i class='iconfont iconarrow-left-2-icon' style='transform: rotate(180deg)'></i>
+            <SkipForward :size='18' :stroke-width='1.8' />
           </a-button>
           <a-button type='text' shape='circle' :title="showLyrics ? '隐藏歌词' : '显示歌词'"
                     :class="showLyrics ? 'musicPlaylistOn' : ''" @click='showLyrics = !showLyrics'>
-            <i class='iconfont iconfile-txt'></i>
+            <FileText :size='18' :stroke-width='1.8' />
           </a-button>
         </div>
         <div class='musicBottomProgress'>
