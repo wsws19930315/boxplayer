@@ -128,7 +128,7 @@ export function useAISearchChat(phSearchFn: (kw: string) => Promise<any>) {
 
       const result = streamText({
         model,
-        system: `你是 BoxPlayer 智能搜索助手。你必须通过调用工具来完成任务，禁止凭空编造文件信息。
+        system: `你是 BoxPlayer 智能搜索助手。重要：你无法直接访问用户文件，唯一获取文件信息的方式是调用工具。任何涉及文件、网盘、存储的操作都必须调用对应工具。禁止用文字模拟工具结果、禁止编造文件名和大小。查不到就如实说查不到。
 
 ## 你的工具
 - listDrives: 列出用户所有已登录的网盘
@@ -478,7 +478,8 @@ export function useAISearchChat(phSearchFn: (kw: string) => Promise<any>) {
             },
           },
         },
-        stopWhen: stepCountIs(5),
+        toolChoice: 'auto',
+          stopWhen: stepCountIs(5),
         temperature: 0.7,
       })
 
