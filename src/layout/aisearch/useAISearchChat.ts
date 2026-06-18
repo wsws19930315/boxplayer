@@ -113,6 +113,7 @@ export function useAISearchChat(phSearchFn: (kw: string) => Promise<any>) {
         system: `你是 BoxPlayer 智能搜索助手。你必须通过调用工具来完成任务，禁止凭空编造文件信息。
 
 ## 你的工具
+- listDrives: 列出用户所有已登录的网盘
 - searchMyFiles: 搜索用户所有云盘中的文件
 - searchPanHub: 搜索全网公开网盘分享链接
 - findDuplicates: 扫描云盘查找重复文件
@@ -126,18 +127,34 @@ export function useAISearchChat(phSearchFn: (kw: string) => Promise<any>) {
 ## 核心规则（必须遵守）
 1. 用户提到文件相关操作，必须调用对应工具，不能只回复文字
 2. 禁止在未调用工具的情况下编造文件名、大小等信息
-3. 操作前必须先确认目标网盘：
-   - 搜索文件 → 默认搜所有网盘，除非用户指定
-   - 导入分享 → 必须问用户保存到哪个网盘（阿里云盘还是夸克）
-   - 整理/移动/删除文件 → 必须问用户操作哪个网盘
-   - 查重/分析空间 → 先问用户分析哪个网盘，还是全部
-   - 下载文件 → 直接添加，下载页可管理
+3. 多网盘场景必须先调用 listDrives：
+   - 用户要求整理/分析/查重时，先调用 listDrives 列出所有网盘
+   - 然后在聊天中让用户选择要操作哪个网盘还是全部
+   - 用户指定后再执行操作
+   - 导入分享：必须问用户保存到阿里云盘还是夸克
 4. 工具返回结果后，简要总结即可
 5. moveFiles 和 deleteFiles 必须先展示确认信息
 6. 完全无关的问题可以正常简短回复
 7. 最多调用工具 5 次`,
         messages: apiMessages,
         tools: {
+          listDrives: {
+            description: '列出用户所有已登录的网盘',
+            inputSchema: z.object({}),
+            execute: async () => {
+              const users = await UserDAL.GetUserListFromDB()
+              const drives = users
+                .filter(u => !!u?.user_id && !!u?.access_token)
+                .map(u => ({
+                  userId: u.user_id,
+                  name: u.nick_name || u.user_name || u.name || u.user_id,
+                  platform: u.tokenfrom || 'aliyun',
+                  driveId: u.default_drive_id || u.drive_id || '',
+                }))
+              return { count: drives.length, drives }
+            },
+          },
+
           searchMyFiles: {
             description: '搜索用户所有已登录云盘中的文件',
             inputSchema: z.object({ keyword: z.string().describe('搜索关键词') }),
