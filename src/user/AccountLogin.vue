@@ -13,18 +13,7 @@ const emailInput = ref('')
 const codeSent = ref(false)
 const emailCode = ref('')
 
-const CALLBACK_URL = ref('')
-
-async function getCallbackUrl(): Promise<string> {
-  if (CALLBACK_URL.value) return CALLBACK_URL.value
-  if (window.Electron?.ipcRenderer) {
-    const port = await window.Electron.ipcRenderer.invoke('oauth:start-server')
-    CALLBACK_URL.value = `http://localhost:${port}/callback`
-  } else {
-    CALLBACK_URL.value = 'boxplayer-auth://callback'
-  }
-  return CALLBACK_URL.value
-}
+const CALLBACK_URL = 'boxplayer-auth://callback'
 
 const supabase = Config.SUPABASE_URL && Config.SUPABASE_ANON_KEY
   ? createClient(Config.SUPABASE_URL, Config.SUPABASE_ANON_KEY)
@@ -41,11 +30,10 @@ async function handleOAuth(provider: 'github' | 'google') {
   if (!supabase) { message.error('未配置 Supabase'); return }
   loading.value = true
   try {
-    const redirectUrl = await getCallbackUrl()
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: redirectUrl,
+        redirectTo: CALLBACK_URL,
         skipBrowserRedirect: false,
       },
     })
@@ -117,9 +105,6 @@ function setupCallbackListener() {
 }
 
 onMounted(setupCallbackListener)
-onUnmounted(() => {
-  window.Electron?.ipcRenderer?.invoke('oauth:stop-server').catch(() => {})
-})
 </script>
 
 <template>

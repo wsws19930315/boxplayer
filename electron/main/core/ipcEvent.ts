@@ -1232,15 +1232,5 @@ export default class ipcEvent {
       return { ok: true }
     })
 
-    // OAuth local callback server
-    ipcMain.handle('oauth:start-server', async () => {
-      const { startOAuthServer } = await import('./oauthServer')
-      const win = BrowserWindow.getAllWindows()[0]
-      return startOAuthServer(win)
-    })
-    ipcMain.handle('oauth:stop-server', async () => {
-      const { stopOAuthServer } = await import('./oauthServer')
-      stopOAuthServer()
-    })
   }
 }
