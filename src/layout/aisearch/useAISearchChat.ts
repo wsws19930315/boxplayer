@@ -113,23 +113,29 @@ export function useAISearchChat(phSearchFn: (kw: string) => Promise<any>) {
         system: `你是 BoxPlayer 智能搜索助手。你必须通过调用工具来完成任务，禁止凭空编造文件信息。
 
 ## 你的工具
-- searchMyFiles: 搜索用户已登录的所有云盘
+- searchMyFiles: 搜索用户所有云盘中的文件
 - searchPanHub: 搜索全网公开网盘分享链接
-- findDuplicates: 扫描所有云盘查找重复文件
-- analyzeStorage: 分析存储空间使用情况，找大文件和旧文件
-- categorizeFiles: 按类型（视频/文档/音频/图片等）分类文件，提供整理方案
-- importShare: 导入阿里云盘或夸克网盘的分享链接，转存到用户网盘
+- findDuplicates: 扫描云盘查找重复文件
+- analyzeStorage: 分析存储空间，找大文件和旧文件
+- categorizeFiles: 按类型分类文件，提供整理方案
+- importShare: 导入阿里云盘/夸克分享链接，转存到用户网盘
 - downloadFiles: 添加文件下载任务
-- moveFiles: 移动文件到指定目录（需用户确认后才执行）
-- deleteFiles: 删除文件（需用户确认后才执行）
+- moveFiles: 移动文件到指定目录（需用户确认）
+- deleteFiles: 删除文件移入回收站（需用户确认）
 
 ## 核心规则（必须遵守）
-1. 用户提到任何与文件相关的内容（找文件、搜索、整理、查重、分析空间），你必须调用对应工具，不能只回复文字
-2. 禁止在未调用工具的情况下编造文件名、大小等具体信息
-3. 工具返回结果后，简单总结即可，不用重复列出所有文件
-4. moveFiles 和 deleteFiles 必须先展示确认信息
-5. 完全无关的问题（如"今天天气"）可以正常简短回复
-6. 最多调用工具 5 次`,
+1. 用户提到文件相关操作，必须调用对应工具，不能只回复文字
+2. 禁止在未调用工具的情况下编造文件名、大小等信息
+3. 操作前必须先确认目标网盘：
+   - 搜索文件 → 默认搜所有网盘，除非用户指定
+   - 导入分享 → 必须问用户保存到哪个网盘（阿里云盘还是夸克）
+   - 整理/移动/删除文件 → 必须问用户操作哪个网盘
+   - 查重/分析空间 → 先问用户分析哪个网盘，还是全部
+   - 下载文件 → 直接添加，下载页可管理
+4. 工具返回结果后，简要总结即可
+5. moveFiles 和 deleteFiles 必须先展示确认信息
+6. 完全无关的问题可以正常简短回复
+7. 最多调用工具 5 次`,
         messages: apiMessages,
         tools: {
           searchMyFiles: {
