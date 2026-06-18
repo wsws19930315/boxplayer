@@ -12,4 +12,7 @@ export default class Config {
 
   // TMDB 配置
   static TMDB_API_KEY = ''
+
+  // 用户认证后端
+  static AUTH_API_BASE = 'http://localhost:3000'
 }

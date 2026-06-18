@@ -52,10 +52,9 @@ const mediaNavVisible = ref(true)
 const appStore = useAppStore()
 const showAccountLogin = ref(false)
 const accountUser = ref<{ email: string } | null>(null)
-// load saved account state
 try {
-  const authed = localStorage.getItem('koodo_is_authed')
-  if (authed === 'yes') accountUser.value = { email: localStorage.getItem('koodo_user_email') || '用户' }
+  const token = localStorage.getItem('app_user_token')
+  if (token) accountUser.value = { email: localStorage.getItem('app_user_email') || '用户' }
 } catch {}
 const settingStore = useSettingStore()
 const winStore = useWinStore()
@@ -318,7 +317,7 @@ onUnmounted(() => {
         <div class='flexauto'></div>
         <a-button v-if="!accountUser" type="text" size="small" @click="showAccountLogin = true">登录</a-button>
         <a-button v-else type="text" size="small" @click="showAccountLogin = true">{{ accountUser.email }}</a-button>
-        <AccountLogin :visible="showAccountLogin" @update:visible="showAccountLogin = $event" @login="(u) => { accountUser = { email: u.email }; localStorage.setItem('koodo_user_email', u.email) }" />
+        <AccountLogin :visible="showAccountLogin" @update:visible="showAccountLogin = $event" @login="(u) => { accountUser = { email: u.email } }" />
         <ShutDown />
         <UserInfo />
         <UserLogin />
