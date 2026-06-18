@@ -110,10 +110,10 @@ const themeTitle = computed(() => {
 const primaryTabDefinitions = [
   { key: 'pan', title: 'Alt+1', label: '网盘' },
   { key: 'media-server', title: 'Alt+6', label: '媒体服务器' },
+  { key: 'search', title: 'Ctrl+K', label: 'AI 搜索' },
   { key: 'media', title: 'Alt+5', label: '视频' },
   { key: 'music', title: 'Alt+8', label: '音乐' },
-  { key: 'book', title: 'Alt+9', label: '书籍' },
-  { key: 'search', title: 'Ctrl+K', label: '全局搜索' }
+  { key: 'book', title: 'Alt+9', label: '书籍' }
 ]
 
 const orderedPrimaryTabs = computed(() => {
@@ -585,8 +585,8 @@ onUnmounted(() => {
   padding: 3px 4px 2px 4px !important;
   color: var(--color-text-2);
   line-height: 37px !important;
-  background: var(--color-menu-light-bg);
-  box-shadow: var(--topshadow) 0px 2px 12px 0px;
+  background: var(--color-bg-1);
+  box-shadow: 0 1px 0 var(--color-border);
 }
 
 .arco-avatar-circle .arco-avatar-image {
@@ -999,6 +999,26 @@ a {
 
 body[arco-theme='dark'] .footinfo {
   opacity: 0.8;
+}
+
+body[arco-theme='dark'] #xbyhead {
+  color: rgba(255, 255, 255, 0.85);
+}
+body[arco-theme='dark'] #xbyhead2 .arco-menu-horizontal .arco-menu-item {
+  color: rgba(255, 255, 255, 0.65);
+}
+body[arco-theme='dark'] #xbyhead2 .arco-menu-horizontal .arco-menu-item:hover {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+}
+body[arco-theme='dark'] #xbyhead2 .arco-menu-horizontal .arco-menu-item.arco-menu-selected {
+  color: rgb(var(--primary-6));
+}
+body[arco-theme='dark'] #xbyhead2 .arco-menu-selected-label {
+  background: rgb(var(--primary-6));
+}
+body[arco-theme='dark'] #xbyhead2 .title {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .footuploadlist .arco-popover-popup-content,
