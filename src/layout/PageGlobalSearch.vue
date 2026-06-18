@@ -135,6 +135,9 @@ const phError = ref(''); const phFilterPlatform = ref('all')
 const phSortType = ref<'default'|'date-desc'|'date-asc'|'name-asc'|'name-desc'>('default')
 const phElapsedMs = ref(0); let phController: AbortController|null = null
 const SETTINGS_KEY = 'panhub.user_settings'
+const phAllPlugins = ref<string[]>([])
+const phAllChannels = ref<string[]>([])
+const showPhSettings = ref(false)
 function loadPhSettings(): PanHubSettings {
   try { const raw = localStorage.getItem(SETTINGS_KEY); if (raw) return JSON.parse(raw) } catch {}
   return { enabledPlugins: [], enabledChannels: [], concurrency: 4, pluginTimeoutMs: 5000 }
@@ -142,8 +145,6 @@ function loadPhSettings(): PanHubSettings {
 function savePhSettings(s: PanHubSettings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)) }
 const phSettings = ref<PanHubSettings>(loadPhSettings())
 const phSources = ref<{ plugins: string[]; channels: string[] }>({ plugins: [], channels: [] })
-let phAllPlugins: string[] = []
-let phAllChannels: string[] = []
 
 const PH_PLATFORM_INFO: Record<string,{name:string;color:string}> = {
   aliyun:{name:'阿里云盘',color:'#7c3aed'},quark:{name:'夸克网盘',color:'#6366f1'},
@@ -170,7 +171,7 @@ async function phDoSearch(){
   try{
     panHubFetch(`${PANHUB_API_BASE}/hot-searches`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({term:kw})}).catch(()=>{})
     const sources=await discoverPanHubSources(PANHUB_API_BASE,panHubFetch,controller.signal)
-        if(!phAllPlugins.length){phAllPlugins=sources.plugins;phAllChannels=sources.channels;phSources.value={plugins:sources.plugins,channels:sources.channels}}
+        if(!phAllPlugins.length){phAllPlugins.value=sources.plugins;phAllChannels.value=sources.channels;phSources.value={plugins:sources.plugins,channels:sources.channels}}
     const result=await searchPanHubSources({
       apiBase:PANHUB_API_BASE,
       keyword:kw,
