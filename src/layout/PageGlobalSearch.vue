@@ -138,6 +138,17 @@ const SETTINGS_KEY = 'panhub.user_settings'
 const phAllPlugins = ref<string[]>([])
 const phAllChannels = ref<string[]>([])
 const showPhSettings = ref(false)
+async function openPhSettings() {
+  showPhSettings.value = true
+  if (!phAllPlugins.value.length) {
+    try {
+      const sources = await discoverPanHubSources(PANHUB_API_BASE, panHubFetch)
+      phAllPlugins.value = sources.plugins
+      phAllChannels.value = sources.channels
+      if (!phSources.value.plugins.length) phSources.value = { plugins: sources.plugins, channels: sources.channels }
+    } catch {}
+  }
+}
 function loadPhSettings(): PanHubSettings {
   try { const raw = localStorage.getItem(SETTINGS_KEY); if (raw) return JSON.parse(raw) } catch {}
   return { enabledPlugins: [], enabledChannels: [], concurrency: 4, pluginTimeoutMs: 5000 }
@@ -585,7 +596,7 @@ onUnmounted(() => {
       </template>
       <template v-else-if="isPanHubMode()">
         <div class="ph-settings-bar">
-      <button class="ph-settings-btn" type="button" title="搜索设置" @click="showPhSettings = true">⚙ 并发:{{ phSettings.concurrency }} · 超时:{{ phSettings.pluginTimeoutMs }}ms</button>
+      <button class="ph-settings-btn" type="button" title="搜索设置" @click="openPhSettings()">⚙ 并发:{{ phSettings.concurrency }} · 超时:{{ phSettings.pluginTimeoutMs }}ms</button>
     </div>
     <div v-if="!phSearched" class="ph-hero-row">
           <header class="ph-hero"><div class="ph-hero-badge">PanHub 搜索聚合引擎</div><h1 class="ph-hero-title"><span class="ph-hero-title-line">一键检索</span><span class="ph-hero-title-line ph-hero-title-accent">全网网盘资源</span></h1><p class="ph-hero-desc">聚合阿里云盘、夸克、百度网盘、115、迅雷等平台 · 快速、直达、少打扰</p><ul class="ph-hero-features"><li class="ph-hero-feature">实时聚合</li><li class="ph-hero-feature">多平台覆盖</li><li class="ph-hero-feature">结果去重</li></ul></header>
