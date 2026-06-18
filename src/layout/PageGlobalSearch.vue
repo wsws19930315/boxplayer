@@ -574,22 +574,23 @@ onUnmounted(() => {
       </div>
       </template>
       <template v-else-if="isPanHubMode()">
-        <div v-if="!phSearched" class="ph-hero-row">
+        <div class="ph-settings-bar">
+      <button class="ph-settings-btn" type="button" title="搜索设置" @click="showPhSettings = !showPhSettings">⚙ 并发:{{ phConcurrency }} · 超时:{{ phTimeout }}ms</button>
+      <div v-if="showPhSettings" class="ph-settings-drop">
+        <div class="ph-settings-row"><span>并发数</span><input v-model.number="phConcurrency" type="number" min="1" max="10" class="ph-settings-input" /></div>
+        <div class="ph-settings-row"><span>超时(ms)</span><input v-model.number="phTimeout" type="number" min="1000" max="30000" step="1000" class="ph-settings-input" /></div>
+      </div>
+    </div>
+    <div v-if="!phSearched" class="ph-hero-row">
           <header class="ph-hero"><div class="ph-hero-badge">PanHub 搜索聚合引擎</div><h1 class="ph-hero-title"><span class="ph-hero-title-line">一键检索</span><span class="ph-hero-title-line ph-hero-title-accent">全网网盘资源</span></h1><p class="ph-hero-desc">聚合阿里云盘、夸克、百度网盘、115、迅雷等平台 · 快速、直达、少打扰</p><ul class="ph-hero-features"><li class="ph-hero-feature">实时聚合</li><li class="ph-hero-feature">多平台覆盖</li><li class="ph-hero-feature">结果去重</li></ul></header>
-          <aside class="ph-hero-aside"><PanHubHotSearches :api-base="PANHUB_API_BASE" @select="phHotSelect" /></aside>
+<aside class="ph-hero-aside"><PanHubHotSearches :api-base="PANHUB_API_BASE" @select="phHotSelect" /></aside>
         </div>
         <div v-if="phError" class="ph-error"><span class="ph-error-icon">⚠️</span>{{ phError }}</div>
         <div v-if="phSearched && !phLoading" class="ph-stats-bar">
           <div class="ph-stats-main"><span class="ph-stat-item"><span class="ph-stat-label">结果</span><span class="ph-stat-value">{{ phTotal }}</span></span><span class="ph-stat-item"><span class="ph-stat-label">用时</span><span class="ph-stat-value">{{ phFmt(phElapsedMs) }}</span></span></div>
           <div v-if="phTotal>0" class="ph-stats-filters"><button :class="['ph-filter-pill',{active:phFilterPlatform==='all'}]" type="button" @click="phFilterPlatform='all'">全部 ({{phTotal}})</button><button v-for="p in phPlatforms" :key="p.key" :class="['ph-filter-pill',{active:phFilterPlatform===p.key}]" type="button" @click="phFilterPlatform=phFilterPlatform===p.key?'all':p.key">{{p.name}}({{p.count}})</button></div>
           <div v-if="phTotal>0" class="ph-stats-sort"><select v-model="phSortType" class="ph-sort-select"><option value="default">默认排序</option><option value="date-desc">最新发布</option><option value="date-asc">最早发布</option><option value="name-asc">名称A→Z</option><option value="name-desc">名称Z→A</option></select></div>
-          <div class="ph-stats-settings">
-            <button class="ph-settings-btn" type="button" title="搜索设置" @click="showPhSettings = !showPhSettings">⚙</button>
-            <div v-if="showPhSettings" class="ph-settings-drop">
-              <div class="ph-settings-row"><span>并发</span><input v-model.number="phConcurrency" type="number" min="1" max="10" class="ph-settings-input" /></div>
-              <div class="ph-settings-row"><span>超时(ms)</span><input v-model.number="phTimeout" type="number" min="1000" max="30000" step="1000" class="ph-settings-input" /></div>
-            </div>
-          </div>
+
         </div>
         <div v-if="phLoading" class="ph-status-msg"><span class="gs-spinner" /> 正在搜索全网资源...</div>
         <section v-if="phHasResults" class="ph-results-section"><div class="ph-results-grid"><PanHubResultGroup :merged="phMerged" :platform-info="PH_PLATFORM_INFO" :filter-platform="phFilterPlatform" :sort-type="phSortType" @copy="phCopy" /></div></section>
@@ -1178,8 +1179,13 @@ onUnmounted(() => {
 .ph-hero-features{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:12px 20px}
 .ph-hero-feature{font-size:12px;font-weight:700;color:rgb(var(--primary-6));padding:6px 12px;background:var(--color-fill-1);border:1px solid rgba(var(--primary-6),.2);border-radius:10px;transition:transform .2s,box-shadow .2s}
 .ph-hero-feature:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(var(--primary-6),.15)}
+
 .ph-hero-aside{flex-shrink:0;width:340px}
 .ph-hero-aside :deep(.ph-hot){background:transparent;border:none;box-shadow:none}
+.ph-settings-bar{position:relative;display:flex;justify-content:flex-end;margin:0 48px 8px}
+.ph-settings-bar .ph-settings-btn{padding:6px 12px;font-size:12px;font-weight:500;color:var(--color-text-3);background:var(--color-fill-1);border:1px solid var(--color-border-2);border-radius:8px;cursor:pointer}
+.ph-settings-bar .ph-settings-btn:hover{color:var(--color-text-1);background:var(--color-fill-2)}
+.ph-settings-bar .ph-settings-drop{position:absolute;right:0;top:36px;z-index:100;padding:12px 14px;background:var(--color-bg-2);border:1px solid var(--color-border-2);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.12);min-width:180px;display:flex;flex-direction:column;gap:10px}
 .ph-stats-bar{margin:0 48px;background:var(--color-bg-2);border:1px solid var(--color-border-2);border-radius:12px;padding:16px 20px;display:flex;flex-direction:column;gap:14px}
 .ph-stats-main{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .ph-stat-item{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--color-fill-1);border-radius:8px;border:1px solid var(--color-border-2)}
