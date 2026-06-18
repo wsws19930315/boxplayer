@@ -94,42 +94,37 @@ onMounted(() => { setupCallbackListener() })
 
 <template>
   <div id="SettingAppAccount" class="setting-section">
-    <h2>应用账户</h2>
-    <p class="desc">登录以使用全部功能</p>
+    <div class="sa-header">
+      <span class="sa-title">应用账户</span>
+      <span v-if="!isLoggedIn" class="sa-hint">GitHub / Google / 邮箱登录</span>
+    </div>
 
     <template v-if="isLoggedIn">
-      <div class="account-logged-in">
-        <div class="account-email">{{ userEmail }}</div>
-        <div class="account-status">已登录</div>
-        <button class="btn-logout" @click="handleLogout"><LogOut :size="14" :stroke-width="1.5" /> 退出登录</button>
+      <div class="sa-logged">
+        <span class="sa-email">{{ userEmail }}</span>
+        <button class="sa-logout" @click="handleLogout"><LogOut :size="13" /> 退出</button>
       </div>
     </template>
 
     <template v-else>
-      <div class="account-login-btns">
-        <button class="btn-oauth btn-github" :disabled="loading" @click="handleOAuth('github')">
-          <Github :size="16" :stroke-width="1.5" /><span>GitHub 登录</span>
-        </button>
-        <button class="btn-oauth btn-google" :disabled="loading" @click="handleOAuth('google')">
-          <Chrome :size="16" :stroke-width="1.5" /><span>Google 登录</span>
-        </button>
+      <div class="sa-oauth">
+        <button class="sa-btn sa-gh" :disabled="loading" @click="handleOAuth('github')"><Github :size="15" /> GitHub</button>
+        <button class="sa-btn sa-go" :disabled="loading" @click="handleOAuth('google')"><Chrome :size="15" /> Google</button>
       </div>
 
-      <div class="divider"><span>或邮箱验证码</span></div>
-
       <template v-if="!codeSent">
-        <div class="email-row">
-          <input v-model="emailInput" type="email" class="input" placeholder="输入邮箱" />
-          <button class="btn-send" :disabled="loading || !emailInput.trim()" @click="handleEmailSend">
-            <Loader2 v-if="loading" :size="14" class="spin" /> <span v-else>发送验证码</span>
+        <div class="sa-email">
+          <input v-model="emailInput" type="email" placeholder="邮箱地址" />
+          <button :disabled="loading || !emailInput.trim()" @click="handleEmailSend">
+            <Loader2 v-if="loading" :size="13" class="spin" /> <span v-else>发送验证码</span>
           </button>
         </div>
       </template>
       <template v-else>
-        <div class="email-row">
-          <input v-model="emailCode" type="text" class="input" placeholder="输入验证码" maxlength="6" @keydown.enter="handleEmailVerify" />
-          <button class="btn-send" :disabled="loading || emailCode.length < 4" @click="handleEmailVerify">
-            <Loader2 v-if="loading" :size="14" class="spin" /> <span v-else>验证并登录</span>
+        <div class="sa-email">
+          <input v-model="emailCode" type="text" placeholder="输入验证码" maxlength="6" @keydown.enter="handleEmailVerify" />
+          <button :disabled="loading || emailCode.length < 4" @click="handleEmailVerify">
+            <Loader2 v-if="loading" :size="13" class="spin" /> <span v-else>验证并登录</span>
           </button>
         </div>
       </template>
@@ -138,33 +133,30 @@ onMounted(() => { setupCallbackListener() })
 </template>
 
 <style scoped>
-.setting-section { padding: 16px 0; }
-.setting-section h2 { font-size: 16px; font-weight: 700; color: var(--color-text-1); margin: 0 0 4px; }
-.desc { font-size: 13px; color: var(--color-text-4); margin: 0 0 16px; }
+.setting-section { padding: 8px 0; }
+.sa-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.sa-title { font-size: 15px; font-weight: 700; color: var(--color-text-1); }
+.sa-hint { font-size: 12px; color: var(--color-text-4); }
 
-.account-logged-in { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px; background: var(--color-fill-1); border: 1px solid var(--color-border); border-radius: 10px; }
-.account-email { font-size: 15px; font-weight: 600; color: var(--color-text-1); }
-.account-status { font-size: 12px; color: rgb(var(--success-6)); }
-.btn-logout { display: flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px; color: var(--color-text-3); background: var(--color-fill-2); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; font-family: inherit; }
-.btn-logout:hover { color: rgb(var(--danger-6)); background: rgba(var(--danger-6), .06); border-color: rgb(var(--danger-6)); }
+.sa-logged { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--color-fill-1); border: 1px solid var(--color-border); border-radius: 8px; }
+.sa-email { font-size: 14px; font-weight: 500; color: var(--color-text-1); }
+.sa-logout { display: flex; align-items: center; gap: 4px; margin-left: auto; padding: 4px 10px; font-size: 11px; color: var(--color-text-4); background: transparent; border: 1px solid var(--color-border); border-radius: 5px; cursor: pointer; font-family: inherit; }
+.sa-logout:hover { color: rgb(var(--danger-6)); border-color: rgb(var(--danger-6)); }
 
-.account-login-btns { display: flex; gap: 10px; margin-bottom: 16px; }
-.btn-oauth { display: flex; align-items: center; gap: 8px; flex: 1; padding: 10px 14px; font-size: 13px; font-weight: 500; border: 1px solid var(--color-border); border-radius: 8px; cursor: pointer; font-family: inherit; transition: all .15s; }
-.btn-oauth:disabled { opacity: .5; cursor: default; }
-.btn-github { background: #24292e; color: #fff; border-color: #24292e; }
-.btn-github:hover:not(:disabled) { opacity: .9; }
-.btn-google { background: var(--color-bg-1); color: var(--color-text-1); }
-.btn-google:hover:not(:disabled) { background: var(--color-fill-1); }
+.sa-oauth { display: flex; gap: 8px; margin-bottom: 8px; }
+.sa-btn { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; padding: 7px 0; font-size: 12px; font-weight: 500; border: 1px solid var(--color-border); border-radius: 7px; cursor: pointer; font-family: inherit; }
+.sa-btn:disabled { opacity: .5; cursor: default; }
+.sa-gh { background: #24292e; color: #fff; border-color: #24292e; }
+.sa-gh:hover:not(:disabled) { opacity: .85; }
+.sa-go { background: var(--color-bg-1); color: var(--color-text-2); }
+.sa-go:hover:not(:disabled) { background: var(--color-fill-1); }
 
-.divider { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--color-text-4); margin-bottom: 12px; }
-.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
-
-.email-row { display: flex; gap: 8px; }
-.input { flex: 1; padding: 8px 12px; font-size: 13px; color: var(--color-text-1); background: var(--color-fill-1); border: 1px solid var(--color-border); border-radius: 8px; outline: none; font-family: inherit; }
-.input:focus { border-color: rgb(var(--primary-6)); }
-.btn-send { display: flex; align-items: center; gap: 4px; padding: 8px 16px; font-size: 13px; font-weight: 500; color: #fff; background: rgb(var(--primary-6)); border: 0; border-radius: 8px; cursor: pointer; font-family: inherit; white-space: nowrap; }
-.btn-send:hover:not(:disabled) { opacity: .9; }
-.btn-send:disabled { opacity: .4; cursor: default; }
+.sa-email { display: flex; gap: 8px; }
+.sa-email input { flex: 1; padding: 7px 10px; font-size: 12px; color: var(--color-text-1); background: var(--color-fill-1); border: 1px solid var(--color-border); border-radius: 7px; outline: none; font-family: inherit; }
+.sa-email input:focus { border-color: rgb(var(--primary-6)); }
+.sa-email button { display: flex; align-items: center; gap: 3px; padding: 7px 12px; font-size: 12px; font-weight: 500; color: #fff; background: rgb(var(--primary-6)); border: 0; border-radius: 7px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.sa-email button:hover:not(:disabled) { opacity: .9; }
+.sa-email button:disabled { opacity: .4; cursor: default; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
