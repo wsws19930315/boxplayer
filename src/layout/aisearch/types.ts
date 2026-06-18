@@ -112,6 +112,14 @@ export interface ToolMoveFilesPart {
   error?: string
 }
 
+export interface ToolGetMoviesPart {
+  type: 'tool-getMovies'
+  state: 'loading' | 'done' | 'error'
+  category?: string
+  movies?: { id: string; title: string; cover: string; desc: string; url: string }[]
+  error?: string
+}
+
 export interface ToolDeleteFilesPart {
   type: 'tool-deleteFiles'
   state: 'confirm' | 'running' | 'done' | 'error'
@@ -134,6 +142,7 @@ export type MessagePart =
   | ToolAnalyzeStoragePart
   | ToolCategorizeFilesPart
   | ToolMoveFilesPart
+  | ToolGetMoviesPart
   | ToolDeleteFilesPart
 
 export interface ChatMessage {

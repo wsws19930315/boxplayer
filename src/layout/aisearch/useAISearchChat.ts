@@ -139,6 +139,7 @@ export function useAISearchChat(phSearchFn: (kw: string) => Promise<any>) {
 - importShare: 导入阿里云盘/夸克分享链接，转存到用户网盘
 - downloadFiles: 添加文件下载任务
 - moveFiles: 移动文件到指定目录（需用户确认）
+- getDoubanMovies: 获取豆瓣电影排行榜（Top250/新片/口碑/北美票房）
 - deleteFiles: 删除文件移入回收站（需用户确认）
 
 ## 核心规则（必须遵守）
@@ -150,6 +151,7 @@ export function useAISearchChat(phSearchFn: (kw: string) => Promise<any>) {
    - listDrives 会在界面弹出网盘选择器，让用户勾选并点确定
    - 用户选择后你会收到类似"用户选择了: 阿里云盘(zxm)、百度网盘。platforms: aliyun,baidu"的消息，提取 platforms 列表传给工具
    - 然后你再执行对应操作
+   - 用户想看热门电影/新片/排行榜 → 直接调用 getDoubanMovies，无需 listDrives
    - 导入分享：必须问用户保存到阿里云盘还是夸克
 4. 工具返回结果后，简要总结即可
 5. moveFiles 和 deleteFiles 必须先展示确认信息
@@ -477,6 +479,30 @@ export function useAISearchChat(phSearchFn: (kw: string) => Promise<any>) {
               appendPart(aiMsgId, { type: 'tool-moveFiles', state: 'confirm', input: { files, targetDir } } as MessagePart)
               scrollBottom()
               return { pending: true }
+            },
+          },
+
+          getDoubanMovies: {
+            description: '获取豆瓣电影排行榜（Top250、新片榜、口碑榜、北美票房），用户想看热门电影或了解最近什么电影好看时调用',
+            inputSchema: z.object({ category: z.enum(['douban-top250','douban-movie','douban-weekly','douban-us-box']).optional().describe('排行榜类别，默认douban-top250') }),
+            execute: async (args: any) => {
+              const category = args.category || 'douban-top250'
+              appendPart(aiMsgId, { type: 'tool-getMovies', state: 'loading', category } as MessagePart)
+              scrollBottom()
+              try {
+                const resp = await fetch(`https://panhub.shenzjd.com/api/douban-hot?category=${category}&page=1&limit=25`)
+                const data = await resp.json()
+                if (data?.code === 0 && data?.data?.items) {
+                  const movies = data.data.items.map((item: any) => ({ id: String(item.id || ''), title: item.title || '', cover: item.cover || '', desc: item.desc || '', url: item.url || '' }))
+                  updateToolPart(aiMsgId, 'tool-getMovies', {}, (p: any) => { p.state = 'done'; p.category = category; p.movies = movies })
+                } else {
+                  updateToolPart(aiMsgId, 'tool-getMovies', {}, (p: any) => { p.state = 'error'; p.error = data?.message || '获取电影数据失败' })
+                }
+              } catch (e: any) {
+                updateToolPart(aiMsgId, 'tool-getMovies', {}, (p: any) => { p.state = 'error'; p.error = e?.message || '请求失败' })
+              }
+              scrollBottom()
+              return {}
             },
           },
 

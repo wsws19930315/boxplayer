@@ -16,6 +16,7 @@ import DuplicateCard from './aisearch/DuplicateCard.vue'
 import StorageCard from './aisearch/StorageCard.vue'
 import OrganizeCard from './aisearch/OrganizeCard.vue'
 import BatchActionCard from './aisearch/BatchActionCard.vue'
+import MovieListCard from './aisearch/MovieListCard.vue'
 import { renderMarkdown } from './aisearch/markdown'
 import type { FileResult } from './aisearch/types'
 
@@ -85,8 +86,9 @@ watch(() => props.trigger, () => {
 })
 
 const DEFAULT_FOLLOWUPS = [
+  '豆瓣电影排行榜',
   '帮我找科幻电影',
-  '搜索 PDF 文档',
+  '最近有什么好电影',
   '整理文件',
   '清理空间',
   '查找重复文件',
@@ -190,6 +192,17 @@ const DEFAULT_FOLLOWUPS = [
               :output="(part as any).output"
               :error="(part as any).error"
               @retry="handleRetryTool(msg.id, 'tool-downloadFiles', (part as any).input)"
+            />
+
+            <!-- tool: getMovies -->
+            <MovieListCard
+              v-else-if="part.type === 'tool-getMovies'"
+              :state="(part as any).state"
+              :category="(part as any).category"
+              :movies="(part as any).movies"
+              :error="(part as any).error"
+              @search="(title: string) => handleSend(title)"
+              @retry="handleRetryTool(msg.id, 'tool-getMovies', {})"
             />
 
             <!-- tool: findDuplicates -->
