@@ -105,34 +105,7 @@ async function handleEmailVerify() {
 }
 
 async function handleUpgrade() {
-  if (!Config.CREEM_API_KEY || !Config.CREEM_PRODUCT_ID) { message.error('Creem 未配置'); return }
-  upgrading.value = true
-  try {
-    const apiBase = Config.CREEM_API_KEY.startsWith('creem_test_') ? 'https://test-api.creem.io' : 'https://api.creem.io'
-    const resp = await fetch(`${apiBase}/v1/checkouts`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': Config.CREEM_API_KEY },
-      body: JSON.stringify({ product_id: Config.CREEM_PRODUCT_ID, customer: { email: accountEmail.value || undefined }, metadata: { app_user: 'boxplayer' } }),
-    })
-    const data = await resp.json()
-    if (data.checkout_url) {
-      openExternal(data.checkout_url)
-      const chkId = data.id || ''
-      if (chkId) {
-        let attempts = 0
-        const poll = setInterval(async () => {
-          if (++attempts > 20) { clearInterval(poll); return }
-          try {
-            const cr = await fetch(`${apiBase}/v1/checkouts/${chkId}`, { headers: { 'x-api-key': Config.CREEM_API_KEY } })
-            const cd = await cr.json()
-            if (cd?.status === 'completed') {
-              clearInterval(poll)
-              localStorage.setItem('app_user_pro', '1'); isPro.value = true
-              message.success('Pro 已激活！')
-            }
-          } catch {}
-        }, 5000)
-      }
-    } else message.error(data.message || `创建支付链接失败: ${resp.status}`)
+  openExternal('https://xbysite.pages.dev/#pricing')
   } catch (e: any) { message.error(e?.message || '网络请求失败') }
   finally { upgrading.value = false }
 }
