@@ -26,7 +26,7 @@ import { isPro } from '../../utils/usageLimit'
 import { assessMediaAcquisitionEpisodeCoverage, canTryNextMediaAcquisitionCandidate, isMediaAcquisitionCandidateSupported, isSystemicMediaAcquisitionFailure, isTransientMediaAcquisitionFailure, mediaAcquisitionCandidateCoveragePlan, scoreMediaAcquisitionCandidate } from './candidatePolicy'
 import { getMediaAcquisitionCapability, normalizeMediaAcquisitionRootFolder, normalizeMediaAcquisitionPlatform } from './capabilities'
 import { runHistoricalMediaLibraryGapScan } from './historicalLibraryScanner'
-import { listMediaAcquisitionDirectoryEntries, listMediaAcquisitionTargetFiles, newMediaAcquisitionFiles, resolveMediaAcquisitionLeafFolder } from './targetSnapshot'
+import { listMediaAcquisitionDirectoryEntries, listMediaAcquisitionTargetFiles, listMediaAcquisitionTargetLeafFiles, newMediaAcquisitionFiles, resolveMediaAcquisitionLeafFolder } from './targetSnapshot'
 import { ensureMediaAcquisitionLeafFolder, ensureMediaAcquisitionSeasonFolder, organizeMediaAcquisitionFiles } from './organizer'
 import { findMediaAcquisitionDuplicateEpisodes } from './duplicatePolicy'
 import { isMediaAcquisitionMatchingSidecar, isMediaAcquisitionPrimaryVideoName, isMediaAcquisitionSubtitleName } from './organizerPolicy'
@@ -318,6 +318,7 @@ async function completeIfRequestedEpisodesAlreadyExist(run: MediaAcquisitionRunV
   if (!['missing', 'patrol'].includes(run.kind) || !['tv', 'anime'].includes(run.target.mediaType) || !seasonTargets.length) return false
   try {
     const coverages = []
+    const coveredFolderIds: string[] = []
     for (const seasonTarget of seasonTargets) {
       const leaf = await resolveMediaAcquisitionLeafFolder({ ...run.target, seasonNumber: seasonTarget.seasonNumber })
       if (!leaf) {
@@ -331,8 +332,10 @@ async function completeIfRequestedEpisodesAlreadyExist(run: MediaAcquisitionRunV
         await addMediaAcquisitionEvent(run.id, 'info', 'search', `预检第 ${seasonTarget.seasonNumber} 季：已存在 E${coverage.obtainedEpisodes.join('、E') || '无'}，仍缺 E${coverage.stillMissingRequestedEpisodes.join('、E')}。`, { tool: 'preflightCoverage', ...coverage })
         return false
       }
+      coveredFolderIds.push(leaf.id)
     }
     if (!coverages.length) return false
+    for (const folderId of [...new Set(coveredFolderIds)]) await scanIntoMediaLibrary(run, folderId)
     await syncTracking(run)
     const covered = coverages.map(coverage => `S${String(coverage.seasonNumber || 1).padStart(2, '0')} E${coverage.requestedMissingEpisodes.join('、E')}`).join('；')
     await completeMediaAcquisitionRun(run.id, `目标缺集已在目录中存在，跳过搜索和转存：${covered}`, { tool: 'preflightCoverage', skipReason: 'ALREADY_EXISTS', coverages })
@@ -555,7 +558,7 @@ async function runMediaAcquisitionSandboxSelection(run: MediaAcquisitionRunView,
             const inspected = []
             for (const season of requestedSeasons) {
               let files: MediaAcquisitionFileSnapshot[]
-              if (isMovie) files = await listMediaAcquisitionTargetFiles(run.target)
+              if (isMovie) files = await listMediaAcquisitionTargetLeafFiles(run.target)
               else {
                 if (!targetSnapshots.has(season)) targetSnapshots.set(season, readMediaAcquisitionTargetSeason(run, season))
                 files = await targetSnapshots.get(season)!
@@ -1313,7 +1316,17 @@ async function moveLandedFilesToTarget(run: MediaAcquisitionRunView, candidate: 
 async function completeOrganizedRun(run: MediaAcquisitionRunView, candidate: MediaAcquisitionCandidate, organized: Awaited<ReturnType<typeof organizeLandedFiles>>, stagingDiscarded: boolean, organizedFolders: Array<Awaited<ReturnType<typeof organizeLandedFiles>>> = [organized]): Promise<void> {
   if (!stagingDiscarded) await cleanupCandidateStagingDirectory(run, candidate)
   await beginMediaAcquisitionOrganizing(run.id, '正在扫描媒体库')
-  for (const folderId of [...new Set(organizedFolders.map(item => item.folderId).filter((id): id is string => !!id))]) await scanIntoMediaLibrary(run, folderId)
+  const organizedFolderIds = new Set(organizedFolders.map(item => item.folderId).filter((id): id is string => !!id))
+  const requestedSeasonNumbers = mediaAcquisitionSeasonTargets(run.target).map(item => item.seasonNumber).filter(Boolean)
+  const seasonNumbers = run.target.mediaType === 'movie' ? [run.target.seasonNumber || 1] : [...new Set(requestedSeasonNumbers.length ? requestedSeasonNumbers : [run.target.seasonNumber || 1])]
+  const resolvedFolderIds = new Set<string>()
+  for (const seasonNumber of seasonNumbers) {
+    const leaf = await resolveMediaAcquisitionLeafFolder({ ...run.target, seasonNumber })
+    if (leaf?.id) resolvedFolderIds.add(leaf.id)
+  }
+  const scanFolderIds = resolvedFolderIds.size ? resolvedFolderIds : organizedFolderIds
+  if (!scanFolderIds.size) throw new Error('媒体已落盘，但无法解析媒体库刮削目录')
+  for (const folderId of scanFolderIds) await scanIntoMediaLibrary(run, folderId)
   const verifiedCoverage = await verifyImportedEpisodeCoverage(run)
   const tracking = await syncTracking(run)
   const remainingSeasonTargets = verifiedCoverage?.seasonTargets || (tracking?.missingEpisodes.length ? [{ seasonNumber: run.target.seasonNumber || 1, missingEpisodes: tracking.missingEpisodes }] : [])
@@ -1628,7 +1641,7 @@ async function scanIntoMediaLibrary(run: MediaAcquisitionRunView, folderId?: str
     // and anime releases whose filenames only contain scene/release metadata.
     mediaHint: run.target.tmdbId ? { tmdbId: run.target.tmdbId, title: run.target.title, year: run.target.year, mediaType: run.target.mediaType } : undefined
   })
-  await addMediaAcquisitionEvent(run.id, 'info', 'organize', '媒体库扫描已完成。', { tool: 'mediaLibraryScan', folderId: folder.file_id, scanStrategy: run.target.tmdbId ? 'target-hint-v2' : 'default-v1' })
+  await addMediaAcquisitionEvent(run.id, 'info', 'organize', '媒体库扫描已完成。', { tool: 'mediaLibraryScan', folderId: folder.file_id, scanStrategy: run.target.tmdbId ? 'target-hint-v3' : 'default-v2', scanQueueVersion: 2 })
 }
 
 async function repairCompletedMediaLibraryIndexes(): Promise<void> {
@@ -1637,7 +1650,7 @@ async function repairCompletedMediaLibraryIndexes(): Promise<void> {
   try {
     const runs = await listMediaAcquisitionRuns(200)
     for (const run of runs.filter(item => item.status === 'completed')) {
-      if (run.events.some(event => event.data?.tool === 'mediaLibraryScan' && typeof event.data?.scanStrategy === 'string')) continue
+      if (run.events.some(event => event.data?.tool === 'mediaLibraryScan' && event.data?.scanQueueVersion === 2)) continue
       const candidate = run.candidates.find(item => item.status === 'imported')
       if (!candidate) continue
       const targetFolderId = [...run.events].reverse().find(event => {

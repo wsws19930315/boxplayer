@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { MediaAcquisitionRequest, MediaAcquisitionState } from '@shared/types/mediaAcquisition'
+import type { CreateMediaAcquisitionRunInput, MediaAcquisitionRequest, MediaAcquisitionState } from '@shared/types/mediaAcquisition'
 import type { ITokenInfo } from '../user/userstore'
 import UserDAL from '../user/userdal'
 import { GetDriveID, GetDriveType, isDrive115User, isQuarkUser } from '../aliapi/utils'
@@ -52,6 +52,10 @@ function accountStatus(account: EligibleAccount) {
   if (state.status === 'completed') return '已获取'
   if (state.status === 'reserved') return '已预定'
   return isRetryableState(state) ? '可重新获取' : '获取中'
+}
+
+function isCompletedDuplicateError(error: unknown) {
+  return /该媒体已加入媒体库|不能重复获取/.test(String((error as { message?: string })?.message || error || ''))
 }
 
 function close() { emit('update:visible', false) }
@@ -172,7 +176,7 @@ async function create() {
     const requestedSeasons = missingSeasons.length ? missingSeasons : [props.request.seasonNumber].filter((season): season is number => typeof season === 'number' && Number.isInteger(season) && season > 0)
     const seasonTargets = isSeries.value ? requestedSeasons.map(seasonNumber => ({ seasonNumber, missingEpisodes: props.request.missingEpisodes?.find(gap => gap.seasonNumber === seasonNumber)?.missingEpisodes || [] })) : []
     const primarySeason = seasonTargets[0]
-    const runs = [await createMediaAcquisitionRun({
+    const runInput: CreateMediaAcquisitionRunInput = {
       kind: missingSeasons.length ? 'missing' : isSeries.value ? 'season' : 'movie', mediaLibraryItemId: props.request.mediaLibraryItemId, tmdbId: props.request.tmdbId,
       force,
       mediaType: props.request.mediaType, title: props.request.title, alternativeTitles: props.request.alternativeTitles, year: props.request.year, releaseDate: props.request.releaseDate,
@@ -183,7 +187,19 @@ async function create() {
       fetchSubtitles: settingStore.mediaAcquisitionFetchSubtitles,
       preferredLanguage: settingStore.mediaAcquisitionFetchSubtitles ? settingStore.mediaAcquisitionSubtitleLanguage : undefined,
       trackingEnabled: isSeries.value
-    })]
+    }
+    let run
+    try {
+      run = await createMediaAcquisitionRun(runInput)
+    } catch (error) {
+      if (!force && isCompletedDuplicateError(error)) {
+        if (!window.confirm(`《${props.request.title}》已获取完成，确定再次创建获取任务吗？`)) return
+        run = await createMediaAcquisitionRun({ ...runInput, force: true })
+      } else {
+        throw error
+      }
+    }
+    const runs = [run]
     for (const run of runs.filter(run => run.status !== 'reserved')) {
       void runMediaAcquisitionWorkflow(run.id).catch(() => {
         message.warning('Agent 已进入后台队列，将自动继续处理')

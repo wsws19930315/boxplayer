@@ -120,7 +120,7 @@ export const apiGuangyaVideoList = async (user_id: string, size = 200): Promise<
 }
 
 export const apiGuangyaFileDetail = async (user_id: string, fileId: string): Promise<GuangyaFileItem | null> => {
-  if (fileId === 'guangya_root' || fileId === '0' || fileId === '/' || fileId === '') return { fileId: 'guangya_root', name: '网盘文件', isDir: true }
+  if (fileId === 'guangya_root' || fileId === '0' || fileId === '/' || fileId === '') return { fileId: 'guangya_root', name: '根目录', isDir: true }
   try {
     const data = await guangyaRequest(user_id, '/nd.bizuserres.s/v1/file/get_file_detail', { fileId })
     return data?.data || data || null

@@ -817,6 +817,7 @@ const openSubtitleSearchModal = () => {
   const keyword = ref(props.title || '')
   const language = ref('zh-cn')
   const loadingResults = ref(false)
+  const downloadingFileId = ref<number>()
   const error = ref('')
   const results = ref<SubtitleSearchResult[]>([])
   let modal: any
@@ -840,6 +841,7 @@ const openSubtitleSearchModal = () => {
 
   const loadSubtitle = async (subtitle: SubtitleSearchResult) => {
     loadingResults.value = true
+    downloadingFileId.value = subtitle.fileId
     error.value = ''
     try {
       const detail = await getSubtitleDownload(subtitle.fileId)
@@ -850,6 +852,7 @@ const openSubtitleSearchModal = () => {
       error.value = err?.message || '下载字幕失败'
     } finally {
       loadingResults.value = false
+      downloadingFileId.value = undefined
     }
   }
 
@@ -864,7 +867,7 @@ const openSubtitleSearchModal = () => {
       h('span', { class: 'mpv-subtitle-result-title' }, subtitle.name),
       h('span', { class: 'mpv-subtitle-result-meta' }, `${subtitle.language} · 下载 ${formatSubtitleDownloadCount(subtitle.downloadCount)}`)
     ]),
-    h('span', { class: 'mpv-subtitle-result-arrow' }, '↓')
+    h('span', { class: 'mpv-subtitle-result-arrow' }, downloadingFileId.value === subtitle.fileId ? '加载中' : '加载')
   ])
 
   const renderContent = () => {
@@ -887,14 +890,20 @@ const openSubtitleSearchModal = () => {
     content: () => h('div', { class: 'mpv-subtitle-modal' }, [
       h('div', { class: 'mpv-subtitle-modal-header' }, [
         h('button', { class: 'mpv-subtitle-modal-close', type: 'button', onClick: () => modal?.close?.() }, '×'),
-        h('div', { class: 'mpv-subtitle-modal-title' }, '在线字幕搜索')
+        h('div', { class: 'mpv-subtitle-modal-heading' }, [
+          h('div', { class: 'mpv-subtitle-modal-title' }, '在线字幕搜索'),
+          h('div', { class: 'mpv-subtitle-modal-subtitle' }, '按片名或 TMDB ID 查找并加载字幕')
+        ])
       ]),
       h('div', { class: 'mpv-subtitle-modal-searchbar' }, [
         h(Select, {
           class: 'mpv-subtitle-language-select',
           modelValue: language.value,
           triggerProps: { autoFitPopupMinWidth: true },
-          'onUpdate:modelValue': (value: unknown) => { language.value = toStringValue(value) }
+          'onUpdate:modelValue': (value: unknown) => {
+            language.value = toStringValue(value)
+            if (keyword.value.trim()) void runSearch()
+          }
         }, () => subtitleLanguages.map((item) => h(AOption, { value: item.code }, () => item.name))),
         h(Input, {
           class: 'mpv-subtitle-search-input',
@@ -912,7 +921,13 @@ const openSubtitleSearchModal = () => {
           onClick: runSearch
         }, () => '搜索')
       ]),
-      h('div', { class: 'mpv-subtitle-result-list' }, renderContent())
+      h('div', { class: 'mpv-subtitle-result-shell' }, [
+        h('div', { class: 'mpv-subtitle-result-toolbar' }, [
+          h('span', {}, loadingResults.value ? '正在搜索' : results.value.length ? `找到 ${results.value.length} 个字幕` : '搜索结果'),
+          h('span', {}, subtitleLanguages.find(item => item.code === language.value)?.name || '')
+        ]),
+        h('div', { class: 'mpv-subtitle-result-list' }, renderContent())
+      ])
     ])
   })
 }
@@ -1921,7 +1936,8 @@ watch(chapters, (nextChapters) => {
 }
 
 :global(.mpv-subtitle-search-modal .arco-modal) {
-  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 18px;
   background: rgba(11, 13, 18, .96);
   box-shadow: 0 28px 80px rgba(0, 0, 0, .56);
   overflow: hidden;
@@ -1933,18 +1949,18 @@ watch(chapters, (nextChapters) => {
 }
 
 :global(.mpv-subtitle-modal) {
-  min-height: 520px;
+  min-height: 560px;
   color: rgba(255, 255, 255, .9);
 }
 
 :global(.mpv-subtitle-modal-header) {
   display: flex;
-  height: 72px;
+  height: 68px;
   align-items: center;
   gap: 16px;
   padding: 0 24px;
   border-bottom: 1px solid rgba(255, 255, 255, .08);
-  background: radial-gradient(circle at 18% 0, rgba(79, 255, 158, .16), transparent 42%), linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .02));
+  background: radial-gradient(circle at 18% 0, rgba(63, 131, 255, .14), transparent 42%), linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .02));
 }
 
 :global(.mpv-subtitle-modal-close) {
@@ -1960,34 +1976,64 @@ watch(chapters, (nextChapters) => {
 }
 
 :global(.mpv-subtitle-modal-title) {
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: .02em;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+:global(.mpv-subtitle-modal-heading) {
+  display: grid;
+  gap: 3px;
+}
+
+:global(.mpv-subtitle-modal-subtitle) {
+  color: rgba(255, 255, 255, .46);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 :global(.mpv-subtitle-modal-searchbar) {
   display: grid;
   grid-template-columns: 150px minmax(0, 1fr) 110px;
   gap: 12px;
-  padding: 20px 24px;
+  padding: 16px 20px 12px;
+}
+
+:global(.mpv-subtitle-result-shell) {
+  margin: 0 20px 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, .12);
+}
+
+:global(.mpv-subtitle-result-toolbar) {
+  display: flex;
+  height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+  color: rgba(255, 255, 255, .48);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 :global(.mpv-subtitle-result-list) {
   display: grid;
   gap: 10px;
-  max-height: 380px;
-  padding: 0 24px 24px;
+  max-height: 390px;
+  padding: 10px;
   overflow: auto;
 }
 
 :global(.mpv-subtitle-result-row) {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) 36px;
+  grid-template-columns: 54px minmax(0, 1fr) 52px;
   align-items: center;
   gap: 14px;
-  min-height: 68px;
+  min-height: 66px;
   border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 16px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, .045);
   color: inherit;
   cursor: pointer;
@@ -1995,16 +2041,16 @@ watch(chapters, (nextChapters) => {
 }
 
 :global(.mpv-subtitle-result-row:hover:not(:disabled)) {
-  border-color: rgba(122, 255, 170, .28);
-  background: rgba(122, 255, 170, .08);
+  border-color: rgba(63, 131, 255, .36);
+  background: rgba(63, 131, 255, .09);
 }
 
 :global(.mpv-subtitle-result-icon) {
   justify-self: end;
   border-radius: 999px;
   padding: 6px 8px;
-  background: rgba(122, 255, 170, .12);
-  color: rgba(183, 255, 207, .92);
+  background: rgba(63, 131, 255, .14);
+  color: rgba(153, 191, 255, .96);
   font-size: 11px;
   font-weight: 900;
 }
@@ -2030,9 +2076,9 @@ watch(chapters, (nextChapters) => {
 }
 
 :global(.mpv-subtitle-result-arrow) {
-  color: rgba(183, 255, 207, .84);
-  font-size: 18px;
-  font-weight: 900;
+  color: rgba(153, 191, 255, .96);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 :global(.mpv-subtitle-empty) {

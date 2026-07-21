@@ -1676,7 +1676,9 @@ const openDanmakuSearchModal = (art: Artplayer) => {
       onClick: () => loadEpisodes(anime)
     }, [
       h('span', { class: 'danmaku-result-icon' }, [
-        h('span', { class: 'danmaku-video-glyph' })
+        anime.imageUrl
+          ? h('img', { class: 'danmaku-result-poster', src: anime.imageUrl, alt: '' })
+          : h('span', { class: 'danmaku-video-glyph' })
       ]),
       h('span', { class: 'danmaku-result-copy' }, [
         h('span', { class: 'danmaku-result-title' }, anime.animeTitle),
@@ -1761,7 +1763,10 @@ const openDanmakuSearchModal = (art: Artplayer) => {
         type: 'button',
         onClick: () => modal?.close?.()
       }, '×'),
-      h('div', { class: 'danmaku-full-title' }, '在线弹幕搜索')
+      h('div', { class: 'danmaku-header-copy' }, [
+        h('div', { class: 'danmaku-full-title' }, '在线弹幕搜索'),
+        h('div', { class: 'danmaku-full-subtitle' }, '选择作品和剧集后立即加载到播放器')
+      ])
     ])
   }
 
@@ -1799,6 +1804,10 @@ const openDanmakuSearchModal = (art: Artplayer) => {
       ]),
       h('p', { class: 'danmaku-search-tip' }, '搜索时只保留剧集名称或电影标题，切换弹幕源将自动重新搜索'),
       h('section', { class: 'danmaku-result-shell' }, [
+        h('div', { class: 'danmaku-result-toolbar' }, [
+          h('span', {}, loading.value ? '正在搜索' : animes.value.length ? `找到 ${animes.value.length} 个作品` : '搜索结果'),
+          h('span', {}, getSelectedDanmakuApi(apis, apiId.value)?.name || '')
+        ]),
         h('div', { class: 'danmaku-modal-list' }, animes.value.length ? animes.value.map(renderAnimeRow) : renderEmpty('暂无搜索结果'))
       ])
     ])
@@ -1811,6 +1820,10 @@ const openDanmakuSearchModal = (art: Artplayer) => {
         type: 'button',
         onClick: () => { viewMode.value = 'search' }
       }, '‹  返回剧集搜索'),
+      h('div', { class: 'danmaku-episode-heading' }, [
+        h('strong', {}, selectedAnimeTitle.value),
+        h('span', {}, [selectedAnimeMeta.value, `${episodes.value.length} 集`].filter(Boolean).join('  ·  '))
+      ]),
       h('section', { class: 'danmaku-episode-shell' }, [
         h('div', { class: 'danmaku-episode-grid' }, episodes.value.length ? episodes.value.map(renderEpisodeRow) : renderEmpty('没有可加载的剧集弹幕'))
       ])
@@ -1819,11 +1832,11 @@ const openDanmakuSearchModal = (art: Artplayer) => {
 
   modal = Modal.open({
     title: '',
-    width: 1456,
+    width: 920,
     hideTitle: true,
     closable: false,
     footer: false,
-    maskClosable: false,
+    maskClosable: true,
     modalClass: 'danmaku-search-modal',
     bodyClass: 'danmaku-search-modal-body',
     onOpen: runSearch,
@@ -1894,6 +1907,7 @@ const openSubtitleSearchModal = (art: Artplayer) => {
   const keyword = ref(getVideoSearchTitle())
   const language = ref('zh-cn')
   const loading = ref(false)
+  const downloadingFileId = ref<number>()
   const errorText = ref('')
   const results = ref<SubtitleSearchResult[]>([])
   let modal: any
@@ -1914,6 +1928,7 @@ const openSubtitleSearchModal = (art: Artplayer) => {
 
   const loadSubtitle = async (subtitle: SubtitleSearchResult) => {
     loading.value = true
+    downloadingFileId.value = subtitle.fileId
     errorText.value = ''
     try {
       const detail = await getSubtitleDownload(subtitle.fileId)
@@ -1928,6 +1943,7 @@ const openSubtitleSearchModal = (art: Artplayer) => {
       errorText.value = error?.message || '下载失败，请重试'
     } finally {
       loading.value = false
+      downloadingFileId.value = undefined
     }
   }
 
@@ -1945,7 +1961,7 @@ const openSubtitleSearchModal = (art: Artplayer) => {
         h('span', { class: 'danmaku-result-title' }, subtitle.name),
         h('span', { class: 'danmaku-result-meta' }, `${subtitle.language}  下载: ${formatSubtitleDownloadCount(subtitle.downloadCount)}`)
       ]),
-      h('span', { class: 'subtitle-download-arrow' }, '↓')
+      h('span', { class: ['subtitle-download-arrow', downloadingFileId.value === subtitle.fileId ? 'is-loading' : ''] }, downloadingFileId.value === subtitle.fileId ? '加载中' : '加载')
     ])
   }
 
@@ -1973,7 +1989,10 @@ const openSubtitleSearchModal = (art: Artplayer) => {
           type: 'button',
           onClick: () => modal?.close?.()
         }, '×'),
-        h('div', { class: 'danmaku-full-title' }, '在线字幕搜索')
+        h('div', { class: 'danmaku-header-copy' }, [
+          h('div', { class: 'danmaku-full-title' }, '在线字幕搜索'),
+          h('div', { class: 'danmaku-full-subtitle' }, '按片名或 TMDB ID 查找并加载字幕')
+        ])
       ]),
       h('div', { class: 'danmaku-full-content' }, [
         h('div', { class: 'danmaku-searchbar subtitle-searchbar' }, [
@@ -1983,6 +2002,7 @@ const openSubtitleSearchModal = (art: Artplayer) => {
             triggerProps: { autoFitPopupMinWidth: true },
             'onUpdate:modelValue': (value: string | number | boolean | Record<string, any> | Array<string | number | boolean | Record<string, any>>) => {
               language.value = toStringValue(value)
+              if (keyword.value.trim()) void runSearch()
             }
           }, () => subtitleLanguages.map((item) => h(AOption, { value: item.code }, () => item.name))),
           h('div', { class: 'danmaku-input-wrap' }, [
@@ -2003,6 +2023,10 @@ const openSubtitleSearchModal = (art: Artplayer) => {
           }, () => '搜索')
         ]),
         h('section', { class: 'danmaku-result-shell' }, [
+          h('div', { class: 'danmaku-result-toolbar' }, [
+            h('span', {}, loading.value ? '正在搜索' : results.value.length ? `找到 ${results.value.length} 个字幕` : '搜索结果'),
+            h('span', {}, subtitleLanguages.find(item => item.code === language.value)?.name || '')
+          ]),
           h('div', { class: 'danmaku-modal-list' }, renderContentState())
         ])
       ])
@@ -3809,9 +3833,12 @@ onBeforeUnmount(() => {
 <style lang="less">
 .danmaku-search-modal {
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 18px;
   background:
-    radial-gradient(circle at 34% 18%, rgba(255, 255, 255, .035), transparent 26%),
-    linear-gradient(135deg, #1b1b1b 0%, #242424 48%, #181818 100%);
+    radial-gradient(circle at 12% 0%, rgba(63, 131, 255, .12), transparent 34%),
+    #15171b;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .56);
 
   .arco-modal-header,
   .arco-modal-close-btn,
@@ -3821,7 +3848,7 @@ onBeforeUnmount(() => {
 }
 
 .danmaku-search-modal-body {
-  height: min(620px, calc(100vh - 96px));
+  height: min(650px, calc(100vh - 80px));
   overflow: hidden;
   padding: 0 !important;
   background: transparent;
@@ -3829,29 +3856,31 @@ onBeforeUnmount(() => {
 
 .danmaku-modal {
   display: flex;
-  height: min(620px, calc(100vh - 96px));
+  height: min(650px, calc(100vh - 80px));
   overflow: hidden;
   flex-direction: column;
   background:
-    radial-gradient(circle at 34% 18%, rgba(255, 255, 255, .035), transparent 26%),
-    linear-gradient(135deg, #1b1b1b 0%, #242424 48%, #181818 100%);
+    radial-gradient(circle at 12% 0%, rgba(63, 131, 255, .12), transparent 34%),
+    #15171b;
   color: #f1f1f1;
 }
 
 .danmaku-full-header {
   position: relative;
   display: flex;
-  height: 56px;
-  flex: 0 0 56px;
+  height: 72px;
+  flex: 0 0 72px;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding: 0 64px;
   border-bottom: 1px solid rgba(255, 255, 255, .12);
 }
 
 .danmaku-close-button {
   position: absolute;
-  left: 18px;
-  top: 14px;
+  right: 22px;
+  left: auto;
+  top: 20px;
   display: flex;
   width: 28px;
   height: 28px;
@@ -3859,19 +3888,31 @@ onBeforeUnmount(() => {
   justify-content: center;
   border: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, .7);
-  color: #242424;
+  border: 1px solid rgba(255, 255, 255, .12);
+  background: rgba(255, 255, 255, .06);
+  color: rgba(255, 255, 255, .78);
   cursor: pointer;
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1;
 }
 
+.danmaku-header-copy {
+  display: grid;
+  gap: 3px;
+}
+
 .danmaku-full-title {
   color: #f2f2f2;
-  font-size: 24px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: 0;
+}
+
+.danmaku-full-subtitle {
+  color: rgba(255, 255, 255, .46);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .danmaku-full-content {
@@ -3879,18 +3920,18 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   flex-direction: column;
-  gap: 16px;
-  padding: 22px 24px 24px;
+  gap: 12px;
+  padding: 18px 20px 20px;
 }
 
 .danmaku-searchbar {
   display: grid;
   grid-template-columns: 150px minmax(0, 1fr) 116px;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
-  padding: 18px 20px;
+  padding: 12px;
   border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 16px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, .045);
 }
 
@@ -3986,10 +4027,10 @@ onBeforeUnmount(() => {
 }
 
 .danmaku-search-tip {
-  margin: 0 8px;
+  margin: 0 4px;
   color: rgba(255, 255, 255, .58);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .danmaku-result-shell,
@@ -3998,9 +4039,21 @@ onBeforeUnmount(() => {
   min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .07);
-  border-radius: 28px;
+  border-radius: 14px;
   background: rgba(0, 0, 0, .08);
-  padding: 20px;
+  padding: 0;
+}
+
+.danmaku-result-toolbar {
+  display: flex;
+  height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+  color: rgba(255, 255, 255, .48);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .danmaku-modal-list {
@@ -4008,20 +4061,21 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 0;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   overflow: auto;
+  padding: 10px;
 }
 
 .danmaku-result-row {
   display: grid;
   width: 100%;
-  min-height: 82px;
-  grid-template-columns: 52px minmax(0, 1fr) 28px;
+  min-height: 72px;
+  grid-template-columns: 46px minmax(0, 1fr) 54px;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 14px;
-  padding: 14px 20px 14px 16px;
+  border-radius: 10px;
+  padding: 10px 14px 10px 12px;
   background: rgba(255, 255, 255, .045);
   color: #f0f0f0;
   text-align: left;
@@ -4030,13 +4084,20 @@ onBeforeUnmount(() => {
 
 .danmaku-result-icon {
   display: flex;
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
+  overflow: hidden;
+  border-radius: 9px;
   background: rgba(255, 255, 255, .06);
   color: rgba(255, 255, 255, .68);
+}
+
+.danmaku-result-poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .danmaku-video-glyph {
@@ -4109,8 +4170,8 @@ onBeforeUnmount(() => {
   color: #f0f0f0;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 18px;
-  font-weight: 900;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .danmaku-result-meta {
@@ -4118,8 +4179,8 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, .58);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .danmaku-result-arrow {
@@ -4130,46 +4191,70 @@ onBeforeUnmount(() => {
 }
 
 .subtitle-download-arrow {
-  color: #3f83ff;
-  font-size: 30px;
-  font-weight: 800;
+  color: #71a5ff;
+  font-size: 12px;
+  font-weight: 700;
   line-height: 1;
   text-align: center;
 }
 
+.subtitle-download-arrow.is-loading {
+  color: rgba(255, 255, 255, .46);
+}
+
 .danmaku-back-button {
   align-self: flex-start;
-  min-width: 150px;
-  height: 42px;
+  min-width: 132px;
+  height: 36px;
   border: 0;
   border-radius: 999px;
   padding: 0 24px;
   background: rgba(255, 255, 255, .07);
   color: #f1f1f1;
   cursor: pointer;
-  font-size: 16px;
-  font-weight: 900;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.danmaku-episode-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+.danmaku-episode-heading strong {
+  overflow: hidden;
+  color: #f2f2f2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+}
+
+.danmaku-episode-heading span {
+  color: rgba(255, 255, 255, .46);
+  font-size: 12px;
 }
 
 .danmaku-episode-grid {
   display: grid;
   height: 100%;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   align-content: flex-start;
   gap: 16px;
   overflow: auto;
-  padding: 24px 12px;
+  padding: 14px;
 }
 
 .danmaku-episode-card {
   display: flex;
-  min-height: 120px;
+  min-height: 94px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
   border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 14px;
+  border-radius: 10px;
   padding: 16px;
   background: rgba(255, 255, 255, .035);
   color: #f1f1f1;
@@ -4178,14 +4263,14 @@ onBeforeUnmount(() => {
 }
 
 .danmaku-episode-number {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 900;
 }
 
 .danmaku-episode-title {
   color: rgba(255, 255, 255, .62);
-  font-size: 14px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .danmaku-empty {

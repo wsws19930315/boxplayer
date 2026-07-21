@@ -123,7 +123,10 @@ describe('MediaAcquisitionDb', () => {
     expect(db.listStates()).toEqual([expect.objectContaining({ mediaKey: 'movie:tmdb:42', status: 'completed', progress: 100 })])
     expect(db.listNotifications()).toEqual([expect.objectContaining({ title: '示例电影', status: 'completed', message: '入库完成，已加入媒体库', read: false })])
     expect(() => db.createRun(input, 1500)).toThrow('不能重复获取')
-    expect(db.createRun({ ...input, kind: 'patrol' }, 1600)).toMatchObject({ kind: 'patrol', status: 'queued' })
+    const repeated = db.createRun({ ...input, force: true }, 1600)
+    expect(repeated).toMatchObject({ status: 'queued' })
+    db.forceCancelRun(repeated.id, 1700)
+    expect(db.createRun({ ...input, kind: 'patrol' }, 1800)).toMatchObject({ kind: 'patrol', status: 'queued' })
     db.close()
   })
 

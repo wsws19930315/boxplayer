@@ -37,6 +37,7 @@ export class MediaScanner {
   private panTreeStore = usePanTreeStore()
   private isScanning = false
   private shouldStop = false
+  private scanWaiters: Array<() => void> = []
 
   // 支持的视频文件扩展名
   private readonly VIDEO_EXTENSIONS = new Set([
@@ -58,9 +59,12 @@ export class MediaScanner {
     driveServerId: string,
     options: { incremental?: boolean; silent?: boolean; aiScrape?: boolean; mediaHint?: MediaScanHint } = {}
   ): Promise<void> {
-    if (this.isScanning) {
-      if (!options.silent) message.warning('正在扫描中，请稍后...')
-      return
+    while (this.isScanning) {
+      if (!options.silent) {
+        message.warning('正在扫描中，请稍后...')
+        return
+      }
+      await new Promise<void>((resolve) => this.scanWaiters.push(resolve))
     }
 
     this.isScanning = true
@@ -68,8 +72,9 @@ export class MediaScanner {
     this.mediaStore.setScanning(true)
     this.mediaStore.setScanProgress(0, 0)
 
-    // 保存断点：如果非增量模式，记录扫描信息以便异常退出后恢复
-    if (!options.incremental) {
+    // 断点恢复只服务于用户主动发起的完整刮削。Agent 的静默扫描由任务
+    // 自身负责重试，不能让视频页把正在运行的后台扫描识别成异常中断。
+    if (!options.incremental && !options.silent) {
       this.saveScanCheckpoint({ folder, driveServerId })
     }
 
@@ -139,12 +144,18 @@ export class MediaScanner {
     } catch (error) {
       console.error('扫描文件夹时出错:', error)
       if (!options.silent) message.error('扫描失败: ' + (error as Error).message)
+      // 后台调用方（例如媒体获取 Agent）必须知道扫描是否真正成功。
+      // 否则 workflow 会继续写入“媒体库扫描已完成”并把任务标记完成，
+      // 只能等下次启动的自动扫描补齐媒体库。
+      if (options.silent) throw error
     } finally {
       this.isScanning = false
       this.mediaStore.setScanning(false)
       if (!this.shouldStop) {
         this.clearScanCheckpoint()
       }
+      const waiters = this.scanWaiters.splice(0)
+      waiters.forEach((resolve) => resolve())
     }
   }
 
@@ -233,6 +244,7 @@ export class MediaScanner {
       }
     } catch (error) {
       console.error(`扫描文件夹失败: ${folder.name}`, error)
+      if (scanContext.silent) throw error
     }
 
     return { unmatched: unmatchedFiles, totalFound }

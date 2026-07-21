@@ -41,4 +41,27 @@ describe('media library ticket regressions', () => {
     expect(source).toContain('return getProxyUrl({')
     expect(source).toContain('proxy_url: rawData.url')
   })
+
+  it('keeps the selected media-source file list compact without an empty header or fixed blank viewport', () => {
+    const library = read('src/components/MediaLibrary.vue')
+    const fileList = read('src/components/MediaPanRight.vue')
+
+    expect(library).toContain('v-if="!showingDetail && !isHomeView && !props.selectedFolder"')
+    expect(library).toContain('v-else-if="props.selectedFolder && folderFileList.length > 0"')
+    expect(fileList).not.toContain(":max-height='500'")
+    expect(fileList).not.toContain('height: 500,')
+    expect(fileList).toContain(':max-height=\'listViewportHeight\'')
+    expect(fileList).toContain('height: listViewportHeight,')
+  })
+
+  it('aligns media-source row actions and uses one icon size', () => {
+    const source = read('src/components/MediaPanRight.vue')
+
+    expect(source).toContain("class='select media-file-action'")
+    expect(source).toContain("class='gengduo media-file-action'")
+    expect(source).toContain(':deep(.media-file-action.arco-btn)')
+    expect(source).toContain('min-height: 28px;')
+    expect(source).toContain('.media-file-action .iconfont')
+    expect(source).toContain('font-size: 20px;')
+  })
 })

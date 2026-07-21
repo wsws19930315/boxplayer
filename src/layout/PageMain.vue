@@ -144,7 +144,10 @@ const trailingTabs = [
   { key: 'rss', title: 'Alt+4', label: '插件' }
 ]
 
-const topNavTabs = computed(() => [...orderedPrimaryTabs.value, ...trailingTabs])
+const topNavTabs = computed(() => {
+  const hidden = new Set(settingStore.uiHiddenTopTabs || [])
+  return [...orderedPrimaryTabs.value, ...trailingTabs].filter((tab) => !hidden.has(tab.key))
+})
 
 const handleHideClick = (_e: any) => {
   if (window.WebToElectron) window.WebToElectron({ cmd: useSettingStore().uiExitOnClose ? 'exit' : 'close' })

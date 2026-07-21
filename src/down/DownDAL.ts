@@ -599,7 +599,7 @@ export default class DownDAL {
               sound.play()
             }
             downingStore.mUpdateDownState(downingItem, 'downed')
-            window.WebToElectron?.({ cmd: 'downloadCompleted', fileName: Info.name })
+            window.WebToElectron?.({ cmd: 'downloadCompleted', fileName: Info.name, showNotification: useSettingStore().ariaTaskNotification })
           } else {
             downingStore.mUpdateDownState(downingItem, 'error', '移动文件失败，请重新下载')
           }

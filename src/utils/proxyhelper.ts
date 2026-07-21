@@ -278,7 +278,7 @@ export async function getRawUrl(
         data.url = downUrl.url
       }
       data.size = downUrl.size
-      const useQuarkSessionInterceptor = uiVideoPlayer === 'web' && !encType && (drive_id === 'quark' || isQuarkUser(user_id))
+      const useQuarkSessionInterceptor = (preview_type === 'video' || preview_type === 'audio') && uiVideoPlayer === 'web' && !encType && (drive_id === 'quark' || isQuarkUser(user_id))
       if (downUrl.headers && !useQuarkSessionInterceptor) data.headers = downUrl.headers
     } else {
       return downUrl as string
@@ -321,7 +321,7 @@ export async function createProxyServer(port: number) {
       let { uiVideoQuality, securityEncType, securityFileNameAutoDecrypt } = useSettingStore()
       let selectQuality = quality || uiVideoQuality
       let subtitle_url = ''
-      if (proxy_kind !== 'mpv' && shouldRefreshProxyUrl({
+      if (proxy_kind !== 'mpv' && proxy_kind !== 'quark-download' && shouldRefreshProxyUrl({
         driveId,
         fileId,
         proxyUrl: String(proxyUrl || ''),
@@ -345,7 +345,7 @@ export async function createProxyServer(port: number) {
         clientRes.end()
         await Db.deleteValueObject('ProxyInfo')
         return
-      } else if (!proxyInfo && !isMediaServerProxy && proxy_kind !== 'subtitle' && proxy_kind !== 'mpv') {
+      } else if (!proxyInfo && !isMediaServerProxy && proxy_kind !== 'subtitle' && proxy_kind !== 'mpv' && proxy_kind !== 'quark-download') {
         let info: FileInfo = {
           user_id, drive_id, file_id, file_size, encType,
           videoQuality: selectQuality,
@@ -411,6 +411,7 @@ export async function createProxyServer(port: number) {
         upstreamHeaders['sec-ch-ua-mobile'] = '?0'
         upstreamHeaders['sec-ch-ua-platform'] = '"macOS"'
         delete upstreamHeaders['content-type']
+        if (!upstreamHeaders.range) upstreamHeaders.range = 'bytes=0-'
         const urlPath = getQuarkUrlPath(String(proxyUrl || ''))
         if (urlPath) upstreamHeaders['x-urlp'] = urlPath
         const cookieKeys = getQuarkProxyCookieKeys(quarkCookie)

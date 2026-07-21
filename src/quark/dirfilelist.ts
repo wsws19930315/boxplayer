@@ -24,6 +24,15 @@ export type QuarkFileItem = {
 
 const BASE = 'https://drive-pc.quark.cn/1/clouddrive'
 
+const quarkDownloadRequestHeaders = (cookie: string, url: string): Record<string, string> => {
+  const headers = quarkDownloadHeaders(cookie) as Record<string, string>
+  try {
+    const path = new URL(url).pathname
+    if (path) headers['x-urlp'] = path
+  } catch {}
+  return headers
+}
+
 const quarkParams = (params: Record<string, string | number | undefined> = {}) => {
   const qs = new URLSearchParams({
     pr: 'ucpro',
@@ -139,7 +148,7 @@ export const apiQuarkSearch = async (user_id: string, keyword: string, size = 20
 
 export const apiQuarkFileDetail = async (user_id: string, fileId: string): Promise<QuarkFileItem | null> => {
   if (fileId === 'quark_root' || fileId === '0') {
-    return { fid: '0', pdir_fid: '', file_name: '网盘文件', file_type: 0 }
+    return { fid: '0', pdir_fid: '', file_name: '根目录', file_type: 0 }
   }
   const data = await quarkRequest(user_id, 'file', {}, { fids: fileId })
   if (!data || isQuarkError(data)) return null
@@ -163,12 +172,13 @@ export const apiQuarkDownloadUrl = async (user_id: string, fileId: string): Prom
     }
     const info = Array.isArray(data?.data) ? data.data[0] : null
     const url = info?.download_url || ''
+    const playbackCookie = String(result?.cookie || token.access_token)
     return {
       url,
       size: Number(info?.size || 0),
       name: info?.file_name || '',
       error: url ? '' : '获取夸克下载地址失败',
-      headers: url ? quarkDownloadHeaders(token.access_token) as Record<string, string> : undefined
+      headers: url ? quarkDownloadRequestHeaders(playbackCookie, url) : undefined
     }
   }
   const params = new URLSearchParams({
@@ -203,7 +213,7 @@ export const apiQuarkDownloadUrl = async (user_id: string, fileId: string): Prom
     size: Number(info?.size || 0),
     name: info?.file_name || '',
     error: url ? '' : '获取夸克下载地址失败',
-    headers: url ? quarkDownloadHeaders(token.access_token) as Record<string, string> : undefined
+    headers: url ? quarkDownloadRequestHeaders(token.access_token, url) : undefined
   }
 }
 

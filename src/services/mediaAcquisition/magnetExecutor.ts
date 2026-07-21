@@ -6,7 +6,7 @@ import type { MediaAcquisitionRunView } from '@shared/types/mediaAcquisition'
 import { addMediaAcquisitionEvent, failMediaAcquisitionCandidate, getMediaAcquisitionCandidateLocator, markMediaAcquisitionCandidateTransferring, recordMediaAcquisitionCandidateBaseline, recordMediaAcquisitionExternalTask, recordMediaAcquisitionTransferIntent } from './client'
 import { normalizeMediaAcquisitionPlatform, normalizeMediaAcquisitionRootFolder } from './capabilities'
 import { canTryNextMediaAcquisitionCandidate } from './candidatePolicy'
-import { listMediaAcquisitionTargetFiles } from './targetSnapshot'
+import { listMediaAcquisitionTransferBaselineFiles } from './targetSnapshot'
 import { cleanupFailedMediaAcquisitionStagingTarget, ensureMediaAcquisitionStagingTarget, hasMaterializedMediaAcquisitionContent, rereadMediaAcquisitionStagingTarget, stopMediaAcquisitionTransferWhenCoverageMet, type MediaAcquisitionStagingTarget } from './staging'
 import DownDAL from '../../down/DownDAL'
 
@@ -27,7 +27,7 @@ export async function executeMediaAcquisitionMagnetCandidate(run: MediaAcquisiti
     if (!claimed) return
     if (await stopMediaAcquisitionTransferWhenCoverageMet(run)) return
     await addMediaAcquisitionEvent(run.id, 'info', 'transfer', `开始${platformName(platform)}磁力离线诊断。`, { tool: 'magnetOffline', candidateId, platform, targetDriveId: run.target.targetDriveId })
-    const baseline = await listMediaAcquisitionTargetFiles(run.target)
+    const baseline = await listMediaAcquisitionTransferBaselineFiles(run.target)
     step = '创建暂存目录'
     staging = await ensureMediaAcquisitionStagingTarget(run.target, run.id, candidateId)
     const parentId = normalizeMediaAcquisitionRootFolder(platform, staging.target.targetParentFileId)
@@ -89,7 +89,7 @@ export async function executeMediaAcquisitionHttpCandidate(run: MediaAcquisition
     if (!claimed) return
     if (await stopMediaAcquisitionTransferWhenCoverageMet(run)) return
     await addMediaAcquisitionEvent(run.id, 'info', 'transfer', `开始${platformName(platform)} HTTP 外链离线诊断。`, { tool: 'httpOffline', candidateId, platform, targetDriveId: run.target.targetDriveId })
-    const baseline = await listMediaAcquisitionTargetFiles(run.target)
+    const baseline = await listMediaAcquisitionTransferBaselineFiles(run.target)
     step = '创建暂存目录'
     staging = await ensureMediaAcquisitionStagingTarget(run.target, run.id, candidateId)
     const parentId = normalizeMediaAcquisitionRootFolder(platform, staging.target.targetParentFileId)

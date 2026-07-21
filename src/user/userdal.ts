@@ -23,6 +23,7 @@ import { applyOneDriveQuota, refreshOneDriveAccessToken } from '../onedrive/auth
 import { applyBoxQuota, refreshBoxAccessToken } from '../box/auth'
 import { refreshCloud189Token } from '../cloud189/auth'
 import { applyGuangyaQuota, refreshGuangyaAccessToken } from '../guangya/auth'
+import { refreshQuarkAccountInfo } from '../quark/auth'
 import { isBaiduUser, isBoxUser, isCloud123User, isCloud139User, isCloud189User, isDrive115User, isDropboxUser, isGuangyaUser, isNonAliyunProvider, isOneDriveUser, isPikPakUser, isQuarkUser } from '../aliapi/utils'
 import { promptAutoScanForUser } from '../utils/libraryAutoScanPrompt'
 
@@ -178,6 +179,17 @@ export default class UserDAL {
       }
       if (isQuarkUser(token)) {
         token.default_drive_id = token.default_drive_id || 'quark'
+        const accountId = token.user_id.replace(/^quark_/, '')
+        const displayName = token.nick_name || token.user_name || token.name
+        if (force || !displayName || displayName === token.user_id || displayName === accountId || displayName.startsWith('cookie_')) {
+          try {
+            const refreshed = await refreshQuarkAccountInfo(token)
+            Object.assign(token, refreshed)
+            this.SaveUserToken(token)
+          } catch {
+            // 昵称刷新失败不应阻断已登录账号继续使用。
+          }
+        }
         return token.user_id && token.access_token ? token : null
       }
       if (isCloud139User(token)) {
@@ -727,7 +739,8 @@ export default class UserDAL {
         UserDAL.SaveUserToken(token)
         return true
       } else if (isQuarkUser(token)) {
-        token.default_drive_id = token.default_drive_id || 'quark'
+        const refreshed = await refreshQuarkAccountInfo(token)
+        Object.assign(token, refreshed)
         UserDAL.SaveUserToken(token)
         return true
       } else if (isGuangyaUser(token)) {
@@ -792,7 +805,6 @@ export default class UserDAL {
           UserDAL.SaveUserToken(refreshed)
         } else if (isQuarkUser(token)) {
           token.default_drive_id = token.default_drive_id || 'quark'
-          UserDAL.SaveUserToken(token)
         } else if (isDropboxUser(token)) {
           const refreshed = await refreshDropboxAccessToken(token)
           if (!refreshed?.access_token) return false
@@ -827,7 +839,8 @@ export default class UserDAL {
       } else if (isPikPakUser(token)) {
         await applyPikPakQuota(token)
       } else if (isQuarkUser(token)) {
-        token.default_drive_id = token.default_drive_id || 'quark'
+        const refreshed = await refreshQuarkAccountInfo(token)
+        Object.assign(token, refreshed)
       } else if (isGuangyaUser(token)) {
         token.default_drive_id = token.default_drive_id || 'guangya'
         await applyGuangyaQuota(token)

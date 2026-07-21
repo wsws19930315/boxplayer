@@ -1,7 +1,7 @@
 <template>
   <div class="media-library">
     <!-- 顶部导航 - 详情页面时隐藏 -->
-    <div v-if="!showingDetail && !isHomeView" class="library-header">
+    <div v-if="!showingDetail && !isHomeView && !props.selectedFolder" class="library-header">
       <div class="library-tabs">
         <a-tabs v-model:activeKey="activeTab" type="text" class="hidetabs">
           <a-tab-pane key="continue" tab="继续观看" />
@@ -483,7 +483,7 @@
       </div>
 
       <!-- 文件列表 - 当选择文件夹时显示 PanRight 组件 -->
-      <div v-else-if="props.selectedFolder && folderFileList.length >= 0" class="folder-file-list">
+      <div v-else-if="props.selectedFolder && folderFileList.length > 0" class="folder-file-list">
         <div class="folder-header">
           <div class="folder-header-content">
             <div class="folder-actions">
@@ -1401,9 +1401,13 @@ const getFolderSourceLabel = (folder: any) => {
   if (folder.driveId === 'drive115' || folder.driveServerId === 'drive115') return '115 网盘'
   if (folder.driveId === 'baidu' || folder.driveServerId === 'baidu') return '百度网盘'
   if (folder.driveId === 'pikpak' || folder.driveServerId === 'pikpak') return 'PikPak'
+  if (folder.driveId === 'quark' || folder.driveServerId === 'quark') return '夸克网盘'
   if (folder.driveId === 'dropbox' || folder.driveServerId === 'dropbox') return 'Dropbox'
   if (folder.driveId === 'onedrive' || folder.driveServerId === 'onedrive') return 'OneDrive'
   if (folder.driveId === 'box' || folder.driveServerId === 'box') return 'Box'
+  if (folder.driveId === 'cloud139' || folder.driveServerId === 'cloud139') return '139 云盘'
+  if (folder.driveId === 'cloud189' || folder.driveServerId === 'cloud189') return '天翼云盘'
+  if (folder.driveId === 'guangya' || folder.driveServerId === 'guangya') return '光鸭云盘'
   return '阿里云盘'
 }
 

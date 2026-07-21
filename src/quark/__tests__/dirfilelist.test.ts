@@ -84,6 +84,7 @@ describe('apiQuarkDownloadUrl', () => {
     expect(result.headers).toMatchObject({
       cookie: '__uid=u1; __kps=kps1',
       referer: 'https://pan.quark.cn/',
+      'x-urlp': '/video.mp4',
       'user-agent': expect.stringContaining('quark-cloud-drive/2.5.56')
     })
     const [url, init] = fetchMock.mock.calls[0]
