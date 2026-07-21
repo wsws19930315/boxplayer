@@ -44,6 +44,8 @@ import {
 } from '../utils/subtitleApi'
 import type { SubtitleSearchResult } from '../utils/subtitleApi'
 import message from '../utils/message'
+import { captureVideoQualitySwitchPlaybackState } from '../utils/videoQualitySwitch'
+import { getLocalVideoProgress, saveLocalVideoProgress } from '../utils/videoProgress'
 import { simpleToTradition, traditionToSimple } from 'chinese-simple2traditional'
 import path from 'path'
 import UserDAL from '../user/userdal'
@@ -52,7 +54,6 @@ import { isAliyunUser, isBaiduUser, isBoxUser, isCloud123User, isCloud139User, i
 import { apiCloud123FileList, mapCloud123FileToAliModel } from '../cloud123/dirfilelist'
 import { apiGuangyaFileList, mapGuangyaFileToAliModel } from '../guangya/dirfilelist'
 import { apiDrive115FileList, mapDrive115FileToAliModel } from '../cloud115/dirfilelist'
-import { apiDrive115VideoPush, getDrive115PickCode } from '../cloud115/video'
 import { apiBaiduFileList, mapBaiduFileToAliModel } from '../cloudbaidu/dirfilelist'
 import { apiPikPakFileList, mapPikPakFileToAliModel } from '../pikpak/dirfilelist'
 import { apiQuarkFileList, mapQuarkFileToAliModel } from '../quark/dirfilelist'
@@ -81,6 +82,7 @@ let autoPlayNumber = 0
 let lastPlayNumber = -1
 let playbackRate = 1
 let longPressSpeed = 1
+let qualitySwitchGeneration = 0
 let ArtPlayerRef: Artplayer
 let mediaServerReportStarted = false
 let mediaServerStopReported = false
@@ -94,6 +96,7 @@ const mpvEmbeddedUrl = ref('')
 const mpvEmbeddedHeaders = ref<Record<string, string>>({})
 const mpvEmbeddedError = ref('')
 const mpvEmbeddedStatus = ref<any>(null)
+const mpvEmbeddedStartPosition = ref(0)
 const mpvEmbeddedQualityLabel = ref('')
 const mpvEmbeddedQuality = ref('')
 const mpvEmbeddedQualities = ref<selectorItem[]>([])
@@ -390,7 +393,7 @@ const resolveHeaderAwareVideoUrl = (
   quality: string,
   proxyKind = ''
 ) => {
-  if (!pageVideo.encType && !hasPlaybackHeaders(headers)) return url
+  if (!pageVideo.encType) return url
   return getProxyUrl({
     user_id: pageVideo.user_id,
     drive_id: pageVideo.drive_id,
@@ -1061,6 +1064,10 @@ const switchMediaServerPlaylistItem = async (art: Artplayer, item: selectorItem)
 
 onMounted(async () => {
   window.addEventListener('keydown', onKeyDown, true)
+  pageVideo.play_cursor = Math.max(
+    Number(pageVideo.play_cursor || 0),
+    getLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id)
+  )
   const name = pageVideo.file_name || '视频在线预览'
   document.body.setAttribute('arco-theme', 'dark')
   setTimeout(() => {
@@ -1183,6 +1190,7 @@ const initEvent = (art: Artplayer) => {
     }
   })
   art.on('restart', async () => {
+    if (qualitySwitchGeneration > 0) return
     await art.play().catch()
     await getVideoCursor(art, pageVideo.play_cursor)
     await applyPendingMediaServerSeek(art)
@@ -1216,7 +1224,7 @@ const initEvent = (art: Artplayer) => {
       if (pageVideo.drive_id === 'media_server') {
         await sendMediaServerProgressReport(art.currentTime || 0)
       }
-      await updateVideoTime()
+      await persistVideoProgress(art.currentTime, art.duration, true)
     }
   })
   // 音量发生变化
@@ -1257,6 +1265,10 @@ const initEvent = (art: Artplayer) => {
       }
       const endDuration = art.storage.get('autoSkipEnd') as number
       const currentTime = art.currentTime
+      pageVideo.play_cursor = Math.floor(currentTime)
+      if (pageVideo.drive_id !== 'media_server' && Math.floor(currentTime) % 10 === 0) {
+        await persistVideoProgress(currentTime, art.duration)
+      }
       if (currentTime > 0 && endDuration > 0) {
         if (endDuration <= currentTime) {
           if (art.storage.get('autoPlayNext')) {
@@ -1282,7 +1294,7 @@ const jumpToNextVideo = async (art: Artplayer) => {
     return
   }
   // 刷新视频
-  await updateVideoTime()
+  await persistVideoProgress(art.currentTime, art.duration, true)
   await refreshSetting(art, item)
   await refreshPlayList(art, item.file_id)
   await autoLoadDanmaku(art)
@@ -1861,7 +1873,7 @@ const loadSubtitleUrlToPlayer = async (art: Artplayer, item: selectorItem) => {
     await loadSubtitleTextToPlayer(art, item.name || item.html, item.ext || getSubtitleExtension(item.name || item.html), item.data)
     return item.html
   }
-  const ext = getSubtitleExtension(item.name || item.url || item.html)
+  const ext = getSubtitleItemExt(item)
   if (isAssSubtitleType(ext)) {
     const response = await fetch(item.url)
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -1873,7 +1885,8 @@ const loadSubtitleUrlToPlayer = async (art: Artplayer, item: selectorItem) => {
   onlineSubData.data = ''
   onlineSubData.dataUrl = ''
   onlineSubData.ext = ext
-  await art.subtitle.switch(item.url, { name: item.name, escape: false })
+  await art.subtitle.switch(item.url, { name: item.name, type: ext, escape: false })
+  art.subtitle.show = true
   return item.html
 }
 
@@ -2079,7 +2092,21 @@ const resolveRawMpvQualitySource = (data: IRawUrl, preferredQuality?: string): {
   }
 
   const defaultHeaders = defaultQuality.headers || data.headers
-  const defaultUrl = resolveHeaderAwareVideoUrl(defaultQuality.url, defaultHeaders, data.size, defaultQuality.quality || '')
+  const directUrl = resolveHeaderAwareVideoUrl(defaultQuality.url, defaultHeaders, data.size, defaultQuality.quality || '')
+  const isOriginQuality = ['Origin', '100'].includes(String(defaultQuality.quality || '')) || defaultQuality.html === '原画'
+  const use115OriginProxy = !pageVideo.encType && pageVideo.drive_id === 'drive115' && isOriginQuality
+  const defaultUrl = use115OriginProxy
+    ? getProxyUrl({
+      user_id: pageVideo.user_id,
+      drive_id: pageVideo.drive_id,
+      file_id: pageVideo.file_id,
+      file_size: data.size,
+      quality: defaultQuality.quality || 'Origin',
+      proxy_url: directUrl,
+      proxy_headers: defaultHeaders ? JSON.stringify(defaultHeaders) : undefined,
+      proxy_kind: 'mpv'
+    })
+    : directUrl
   const defaultQualityWidth = (defaultQuality as any).width
   return {
     quality: defaultQuality,
@@ -2136,21 +2163,8 @@ const resolveMpvEmbeddedExternalSubtitle = async (): Promise<{ url: string; titl
   const subtitleFile = PlayerUtils.filterSubtitleFile(pageVideo.file_name, subtitleFiles as any) as selectorItem | undefined
   if (!subtitleFile?.file_id) return undefined
 
-  const data = await AliFile.ApiFileDownloadUrl(pageVideo.user_id, subtitleFile.drive_id || pageVideo.drive_id, subtitleFile.file_id, 14400)
-  if (typeof data === 'string' || !data.url) return undefined
-  const subtitleUrl = data.headers
-    ? getProxyUrl({
-      user_id: pageVideo.user_id,
-      drive_id: subtitleFile.drive_id || pageVideo.drive_id,
-      file_id: subtitleFile.file_id,
-      encType: subtitleFile.encType,
-      password: pageVideo.password,
-      file_size: data.size,
-      quality: 'Origin',
-      proxy_url: data.url,
-      proxy_headers: JSON.stringify(data.headers)
-    })
-    : data.url
+  const subtitleUrl = await resolveCloudSubtitleUrl(subtitleFile)
+  if (!subtitleUrl) return undefined
 
   return {
     url: subtitleUrl,
@@ -2158,7 +2172,10 @@ const resolveMpvEmbeddedExternalSubtitle = async (): Promise<{ url: string; titl
   }
 }
 
-const loadMpvEmbeddedCurrentVideo = async () => {
+const loadMpvEmbeddedCurrentVideo = async (resumePosition = pageVideo.play_cursor || 0) => {
+  const storedProgress = getLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id)
+  resumePosition = Math.max(Number(resumePosition) || 0, storedProgress)
+  pageVideo.play_cursor = Math.max(Number(pageVideo.play_cursor) || 0, storedProgress)
   const source = await resolvePageVideoMpvSource()
   if (source.error || !source.url) {
     mpvEmbeddedError.value = source.error || '获取 MPV 播放地址失败'
@@ -2166,11 +2183,20 @@ const loadMpvEmbeddedCurrentVideo = async () => {
     return false
   }
   mpvEmbeddedError.value = ''
+  mpvEmbeddedStartPosition.value = Math.max(0, Math.floor(Number(resumePosition) || 0))
   mpvEmbeddedUrl.value = source.url
   mpvEmbeddedHeaders.value = source.headers || {}
   mpvEmbeddedQualityLabel.value = source.qualityLabel || ''
   mpvEmbeddedQuality.value = source.quality || ''
   mpvEmbeddedQualities.value = source.qualities || []
+  console.info('[播放][MPV] 当前播放链接', {
+    quality: source.quality || '',
+    qualityLabel: source.qualityLabel || '',
+    url: source.url,
+    position: mpvEmbeddedStartPosition.value,
+    hasAuthorization: Boolean(source.headers && Object.keys(source.headers).some((key) => key.toLowerCase() === 'authorization')),
+    userAgent: source.headers && Object.entries(source.headers).find(([key]) => key.toLowerCase() === 'user-agent')?.[1] || ''
+  })
   try {
     mpvEmbeddedExternalSubtitle.value = await resolveMpvEmbeddedExternalSubtitle()
   } catch (error) {
@@ -2183,9 +2209,22 @@ const loadMpvEmbeddedCurrentVideo = async () => {
 const handleMpvEmbeddedQualitySelect = async (quality: string) => {
   if (!quality || quality === mpvEmbeddedQuality.value) return
   const status = await window.WebMpvEmbeddedStatus?.().catch(() => undefined)
-  pageVideo.play_cursor = Math.floor(Number(status?.status?.position || mpvEmbeddedStatus.value?.position || pageVideo.play_cursor || 0))
+  const position = Math.max(
+    Number(status?.status?.position || 0),
+    Number(mpvEmbeddedStatus.value?.position || 0),
+    Number(pageVideo.play_cursor || 0),
+    getLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id)
+  )
+  pageVideo.play_cursor = Number.isFinite(position) && position > 0 ? Math.floor(position) : 0
+  const resumePosition = pageVideo.play_cursor
+  saveLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, pageVideo.play_cursor)
+  console.info('[播放][MPV] 切换清晰度前保存进度', {
+    quality,
+    position: pageVideo.play_cursor,
+    source: status?.status?.position || mpvEmbeddedStatus.value?.position ? 'mpv-status' : 'shared-progress'
+  })
   mpvEmbeddedQuality.value = quality
-  await loadMpvEmbeddedCurrentVideo()
+  await loadMpvEmbeddedCurrentVideo(resumePosition)
 }
 
 const applyPlaylistItemToPageVideo = (item: selectorItem) => {
@@ -2218,7 +2257,7 @@ const switchMpvEmbeddedPlaylistItem = async (item: selectorItem) => {
     await switchMpvMediaServerPlaylistItem(item)
     return
   }
-  if (position > 0) await updateVideoTime(position, duration)
+  if (position > 0) await persistVideoProgress(position, duration, true)
   applyPlaylistItemToPageVideo(item)
   await buildPageVideoPlayList(item.file_id)
   await loadMpvEmbeddedCurrentVideo()
@@ -2340,15 +2379,57 @@ const getVideoInfo = async (art: Artplayer) => {
       selector: data.qualities,
       onSelect: (selector: any, element: HTMLElement, event: Event) => {
         const item = selector as selectorItem
+        const playbackState = captureVideoQualitySwitchPlaybackState(!art.video.paused && !art.video.ended, art.video.currentTime)
         const artType = getArtVideoType(item.url, item.type)
         art.type = artType as any
         if (!isHlsVideoType(artType)) destroyArtHls(art)
         if (!isDashVideoType(artType)) destroyArtDash(art)
         const itemHeaders = item.headers || data.headers
         const itemUrl = resolveHeaderAwareVideoUrl(item.url, itemHeaders, data.size, item.quality || '')
-        art.switchQuality(itemUrl).then(() => {
+        console.info('[播放][网页] 切换清晰度链接', {
+          quality: item.quality || '',
+          qualityLabel: item.html || '',
+          url: itemUrl,
+          position: playbackState.position,
+          shouldResume: playbackState.shouldResume
+        })
+        let positionRestored = false
+        const switchGeneration = ++qualitySwitchGeneration
+        const restorePlayback = async () => {
+          if (switchGeneration !== qualitySwitchGeneration) return
+          if (playbackState.position > 0 && !positionRestored) {
+            art.currentTime = playbackState.position
+            positionRestored = true
+          }
+          if (playbackState.shouldResume && art.video.paused) await art.play().catch(() => undefined)
+        }
+        const handleQualityCanPlay = () => {
+          void restorePlayback()
+        }
+        const handleQualityError = () => {
+          art.off('video:canplay', handleQualityCanPlay)
+        }
+        art.once('video:canplay', handleQualityCanPlay)
+        art.once('video:error', handleQualityError)
+        art.switchQuality(itemUrl).then(async () => {
+          if (switchGeneration !== qualitySwitchGeneration) return
+          art.off('video:canplay', handleQualityCanPlay)
+          art.off('video:error', handleQualityError)
           scheduleCleanupInactiveStreamingControls(art)
           art.playbackRate = playbackRate
+          await restorePlayback()
+          if (switchGeneration === qualitySwitchGeneration) qualitySwitchGeneration = 0
+          console.info('[播放][网页] 已切换播放链接', {
+            quality: item.quality || '',
+            url: art.video?.currentSrc || art.url || itemUrl,
+            position: art.currentTime,
+            playing: art.playing
+          })
+        }).catch((error) => {
+          if (switchGeneration === qualitySwitchGeneration) qualitySwitchGeneration = 0
+          art.off('video:canplay', handleQualityCanPlay)
+          art.off('video:error', handleQualityError)
+          console.error('[播放][网页] 切换播放链接失败', { quality: item.quality || '', url: itemUrl, error })
         })
         return item.html
       }
@@ -2372,6 +2453,7 @@ const getVideoInfo = async (art: Artplayer) => {
         embedSubSelector.push({
           html: '内嵌:  ' + subtitle.language,
           name: subtitle.language,
+          ext: getSubtitleExtension(subtitle.url),
           url: subtitleUrl,
           default: i === 0
         })
@@ -2590,6 +2672,7 @@ const getVideoCursor = async (art: Artplayer, play_cursor?: number) => {
         }
       }
     }
+    cursor = Math.max(cursor, getLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id))
     // 防止无效跳转
     if (cursor >= art.duration) {
       cursor = art.duration - 60
@@ -2656,23 +2739,29 @@ const hasSubtitleSource = (item?: selectorItem) => {
 
 const readSubtitleItemText = async (item: selectorItem) => {
   if (!item.file_id) return ''
-  if (isQuarkUser(pageVideo.user_id) || pageVideo.drive_id === 'quark') {
-    const raw = await getRawUrl(pageVideo.user_id, pageVideo.drive_id, item.file_id, item.encType, item.password, false, 'other')
-    if (typeof raw === 'string' || !raw.url) return ''
-    const url = getProxyUrl({
-      user_id: pageVideo.user_id,
-      drive_id: pageVideo.drive_id,
-      file_id: item.file_id,
-      encType: item.encType,
-      password: item.password,
-      file_size: raw.size,
-      quality: 'Origin',
-      proxy_url: raw.url
-    })
-    const response = await fetch(url)
-    return response.ok ? response.text() : ''
-  }
-  return AliFile.ApiFileDownText(pageVideo.user_id, pageVideo.drive_id, item.file_id, -1, -1, item.encType)
+  const url = await resolveCloudSubtitleUrl(item)
+  if (!url) return ''
+  const response = await fetch(url)
+  return response.ok ? response.text() : ''
+}
+
+const resolveCloudSubtitleUrl = async (item: selectorItem): Promise<string> => {
+  if (!item.file_id) return item.url || ''
+  const driveId = item.drive_id || pageVideo.drive_id
+  const data = await AliFile.ApiFileDownloadUrl(pageVideo.user_id, driveId, item.file_id, 14400)
+  if (typeof data === 'string' || !data.url) return ''
+  return getProxyUrl({
+    user_id: pageVideo.user_id,
+    drive_id: driveId,
+    file_id: item.file_id,
+    encType: item.encType,
+    password: item.password || pageVideo.password,
+    file_size: data.size,
+    quality: 'Origin',
+    proxy_kind: 'subtitle',
+    proxy_url: data.url,
+    proxy_headers: hasPlaybackHeaders(data.headers) ? JSON.stringify(data.headers) : undefined
+  })
 }
 
 const buildMultipleSubtitleTrack = async (art: Artplayer, item: selectorItem, index: number): Promise<MultipleSubtitleTrack | undefined> => {
@@ -2739,7 +2828,7 @@ const applyMultipleSubtitles = async (art: Artplayer, items: selectorItem[], rev
 
 const loadOnlineSub = async (art: Artplayer, item: any) => {
   clearMultipleSubtitleState(art)
-  const data = await AliFile.ApiFileDownText(pageVideo.user_id, pageVideo.drive_id, item.file_id, -1, -1, item.encType)
+  const data = await readSubtitleItemText(item)
   if (data) {
     await loadSubtitleTextToPlayer(art, item.name, item.ext, data)
     return item.html
@@ -2797,7 +2886,7 @@ const getSubTitleList = async (art: Artplayer) => {
         await loadOnlineSub(art, subSelector[similarity.index])
       }
     } else if (embedSubSelector.length > 0 && !hasDownloadedDefault) {
-      art.subtitle.url = embedSubSelector[0].url
+      await loadSubtitleUrlToPlayer(art, embedSubSelector[0])
       art.subtitle.style('fontSize', subtitleSize)
     }
   }
@@ -2988,16 +3077,24 @@ const updateVideoTime = async (positionSeconds = ArtPlayerRef?.currentTime || 0,
   updateContinueWatching(positionSeconds, durationSeconds)
 }
 
-const submitDrive115VideoPush = async (op: 'vip_push' | 'pay_push') => {
-  if (!isDrive115User(pageVideo.user_id) && pageVideo.drive_id !== 'drive115') return
-  const meta = await getDrive115PickCode(pageVideo.user_id, pageVideo.file_id)
-  if (!meta?.pick_code) {
-    message.error(meta?.error || '获取 115 视频提取码失败')
-    return
+let lastVideoProgressSaveSecond = -1
+let lastVideoProgressSaveKey = ''
+
+const persistVideoProgress = async (positionSeconds: number, durationSeconds: number, force = false) => {
+  if (pageVideo.drive_id === 'media_server') return
+  const position = Number(positionSeconds || 0)
+  if (!Number.isFinite(position) || position <= 0) return
+  const key = `${pageVideo.user_id}:${pageVideo.drive_id}:${pageVideo.file_id}`
+  if (key !== lastVideoProgressSaveKey) {
+    lastVideoProgressSaveKey = key
+    lastVideoProgressSaveSecond = -1
   }
-  const result = await apiDrive115VideoPush(pageVideo.user_id, meta.pick_code, op)
-  if (result.success) message.success(result.message)
-  else message.error(result.message)
+  const second = Math.floor(position)
+  saveLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, position)
+  if (!force && second < 10) return
+  if (!force && second === lastVideoProgressSaveSecond) return
+  lastVideoProgressSaveSecond = second
+  await updateVideoTime(position, durationSeconds)
 }
 
 const findMediaItemByFileId = (fileId: string): MediaLibraryItem | undefined => {
@@ -3035,6 +3132,7 @@ const updateContinueWatching = (positionSeconds = ArtPlayerRef?.currentTime || 0
 const handleMpvEmbeddedStatus = async (status: any) => {
   if (!useMacEmbeddedMpv || !status) return
   mpvEmbeddedStatus.value = status
+  if (status.__loading) return
   const currentSecond = Math.floor(Number(status.position || 0))
   const duration = Number(status.duration || 0)
   if (currentSecond <= 0) return
@@ -3055,10 +3153,7 @@ const handleMpvEmbeddedStatus = async (status: any) => {
     }
     return
   }
-  if (!status.paused && currentSecond % 10 === 0 && currentSecond !== mediaServerLastProgressSecond) {
-    mediaServerLastProgressSecond = currentSecond
-    await updateVideoTime(currentSecond, duration)
-  }
+  await persistVideoProgress(currentSecond, duration)
 }
 
 const handleHideClick = async () => {
@@ -3070,13 +3165,13 @@ const handleHideClick = async () => {
     const status = await window.WebMpvEmbeddedStatus?.().catch(() => undefined)
     const position = status?.status?.position || mpvEmbeddedStatus.value?.position || pageVideo.play_cursor || 0
     const duration = status?.status?.duration || mpvEmbeddedStatus.value?.duration || 0
-    if (position > 0) await updateVideoTime(position, duration)
+    if (position > 0) await persistVideoProgress(position, duration, true)
     await window.WebMpvEmbeddedControl?.({ action: 'stop' }).catch(() => undefined)
     window.close()
     return
   }
   await ArtPlayerRef.emit('video:pause')
-  await updateVideoTime()
+  await persistVideoProgress(ArtPlayerRef?.currentTime || 0, ArtPlayerRef?.duration || 0, true)
   window.close()
 }
 const handleMinClick = (_e: any) => {
@@ -3099,8 +3194,12 @@ onBeforeUnmount(() => {
   if (useMacEmbeddedMpv) {
     const position = mpvEmbeddedStatus.value?.position || pageVideo.play_cursor || 0
     const duration = mpvEmbeddedStatus.value?.duration || 0
-    if (position > 0) void updateVideoTime(position, duration)
+    if (position > 0) void persistVideoProgress(position, duration, true)
     void window.WebMpvEmbeddedControl?.({ action: 'stop' })
+  } else if (ArtPlayerRef?.currentTime > 0) {
+    // BrowserWindow may be closed by the system window button without going
+    // through handleHideClick. Keep the shared progress synchronous.
+    saveLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, ArtPlayerRef.currentTime)
   }
   if (onlineSubData.dataUrl) {
     URL.revokeObjectURL(onlineSubData.dataUrl)
@@ -3128,10 +3227,6 @@ onBeforeUnmount(() => {
           <button class="mpv-window-dot max" type="button" aria-label="最大化窗口" @click.stop="handleMaxClick"></button>
         </div>
         <div class="mpv-window-title">{{ pageVideo?.file_name || '视频在线预览' }}</div>
-        <template v-if="isDrive115User(pageVideo.user_id) || pageVideo.drive_id === 'drive115'">
-          <a-button type='text' tabindex='-1' title='115 VIP 加速转码' @click='submitDrive115VideoPush("vip_push")'>VIP 转码</a-button>
-          <a-button type='text' tabindex='-1' title='115 枫叶加速转码' @click='submitDrive115VideoPush("pay_push")'>枫叶转码</a-button>
-        </template>
       </div>
       <div v-else id='xbyhead2' class='q-electron-drag'>
         <a-button type='text' tabindex='-1'>
@@ -3139,10 +3234,6 @@ onBeforeUnmount(() => {
         </a-button>
         <div class='title'>{{ pageVideo?.file_name || '视频在线预览' }}</div>
         <div class='flexauto'></div>
-        <template v-if="isDrive115User(pageVideo.user_id) || pageVideo.drive_id === 'drive115'">
-          <a-button type='text' tabindex='-1' title='115 VIP 加速转码' @click='submitDrive115VideoPush("vip_push")'>VIP 转码</a-button>
-          <a-button type='text' tabindex='-1' title='115 枫叶加速转码' @click='submitDrive115VideoPush("pay_push")'>枫叶转码</a-button>
-        </template>
         <a-button type='text' tabindex='-1' :title="(isTop ? '取消置顶' : '置顶') + 'Alt+T'" @click='handleTop'>
           <IconFont :name="(isTop ? 'iconquxiaozhiding' : 'iconzhiding')" />
         </a-button>
@@ -3169,7 +3260,7 @@ onBeforeUnmount(() => {
         :playlist="[...playList]"
         :qualities="mpvEmbeddedQualities"
         :quality-label="mpvEmbeddedQualityLabel"
-        :start-position="pageVideo.play_cursor || 0"
+        :start-position="mpvEmbeddedStartPosition || pageVideo.play_cursor || 0"
         :title="pageVideo.file_name"
         :url="mpvEmbeddedUrl"
         @error="(error) => mpvEmbeddedError = error"

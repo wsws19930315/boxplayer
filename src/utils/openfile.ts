@@ -12,6 +12,7 @@ import message from './message'
 import { modalArchive, modalArchivePassword, modalSelectPanDir, modalSelectVideoQuality } from './modal'
 import PlayerUtils from './playerhelper'
 import { getEncType, getProxyUrl, getRawUrl } from './proxyhelper'
+import { getLocalVideoProgress } from './videoProgress'
 import { isAliyunUser, isBaiduUser, isBoxUser, isCloud123User, isCloud139User, isCloud189User, isDrive115User, isDropboxUser, isGuangyaUser, isOneDriveUser, isPikPakUser } from '../aliapi/utils'
 
 async function resolveTokenForFile(file: IAliGetFileModel): Promise<ITokenInfo | undefined> {
@@ -307,6 +308,7 @@ async function Video(
     } else {
       play_cursor = file.media_play_cursor ? parseInt(file.media_play_cursor) : 0
     }
+    play_cursor = Math.max(play_cursor, getLocalVideoProgress(token.user_id, file.drive_id, file.file_id))
     // 获取文件夹信息
     const info = await AliFile.ApiFileInfo(token.user_id, file.drive_id, file.parent_file_id)
     let parent_file_name = ''

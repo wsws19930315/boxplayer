@@ -19,8 +19,8 @@ import { apiBaiduFileList } from '../cloudbaidu/dirfilelist'
 import { apiBaiduFileMetas, mapBaiduMetaToAliFileItem } from '../cloudbaidu/filecmd'
 import { apiPikPakDownloadInfo, apiPikPakFileDetail, mapPikPakFileToAliModel } from '../pikpak/dirfilelist'
 import { apiQuarkDownloadUrl, apiQuarkFileDetail, apiQuarkVideoPreviewUrl, mapQuarkFileToAliModel } from '../quark/dirfilelist'
-import { apiCloud139DownloadInfo, apiCloud139FileDetail, mapCloud139FileToAliModel } from '../cloud139/dirfilelist'
-import { apiCloud189DownloadInfo, apiCloud189FileDetail, mapCloud189FileToAliModel } from '../cloud189/dirfilelist'
+import { apiCloud139DownloadInfo, apiCloud139FileDetail, cloud139DownloadHeaders, mapCloud139FileToAliModel } from '../cloud139/dirfilelist'
+import { apiCloud189DownloadInfo, apiCloud189FileDetail, cloud189DownloadHeaders, mapCloud189FileToAliModel } from '../cloud189/dirfilelist'
 import { apiGuangyaDownloadInfo, apiGuangyaFileDetail, mapGuangyaFileToAliModel } from '../guangya/dirfilelist'
 import { apiDropboxFileDetail, apiDropboxTemporaryLink, mapDropboxFileToAliModel, resolveDropboxParentIdFromPath } from '../dropbox/dirfilelist'
 import { apiOneDriveFileDetail, getOneDriveDownloadUrl, mapOneDriveItemToAliModel } from '../onedrive/dirfilelist'
@@ -397,12 +397,12 @@ export default class AliFile {
     if (isCloud139User(user_id) || drive_id === 'cloud139') {
       const info = await apiCloud139DownloadInfo(user_id, file_id)
       if (info.error) return info.error
-      return { drive_id, file_id, expire_time: GetExpiresTime(info.url), url: info.url, size: Number(info.size || 0) }
+      return { drive_id, file_id, expire_time: GetExpiresTime(info.url), url: info.url, size: Number(info.size || 0), headers: cloud139DownloadHeaders() }
     }
     if (isCloud189User(user_id) || drive_id === 'cloud189') {
       const info = await apiCloud189DownloadInfo(user_id, file_id)
       if (info.error) return info.error
-      return { drive_id, file_id, expire_time: GetExpiresTime(info.url), url: info.url, size: Number(info.size || 0) }
+      return { drive_id, file_id, expire_time: GetExpiresTime(info.url), url: info.url, size: Number(info.size || 0), headers: cloud189DownloadHeaders() }
     }
     if (isGuangyaUser(user_id) || drive_id === 'guangya') {
       const info = await apiGuangyaDownloadInfo(user_id, file_id)

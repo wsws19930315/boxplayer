@@ -840,6 +840,10 @@
               <span class="library-card-context-icon">AI</span>
               <span>AI 重刮削 <span class="ai-pro-badge">Pro</span></span>
             </button>
+            <button type="button" class="library-card-context-item" @click="openManualMetadataEditor">
+              <span class="library-card-context-icon">✎</span>
+              <span>手动修改信息</span>
+            </button>
             <div class="library-card-context-divider" />
             <button type="button" class="library-card-context-item danger" @click="deleteMediaFromMenu">
               <span class="library-card-context-icon">✕</span>
@@ -849,6 +853,34 @@
         </div>
       </template>
     </a-dropdown>
+    <a-modal v-model:visible="manualMetadataVisible" title="修改媒体信息" :ok-button-props="{ disabled: !manualMetadata.name.trim() }" @ok="saveManualMetadata">
+      <a-form :model="manualMetadata" layout="vertical">
+        <a-form-item field="name" label="标题">
+          <a-input v-model="manualMetadata.name" placeholder="媒体标题" />
+        </a-form-item>
+        <div class="manual-metadata-grid">
+          <a-form-item field="year" label="年份">
+            <a-input v-model="manualMetadata.year" placeholder="例如 2024" />
+          </a-form-item>
+          <a-form-item field="type" label="类型">
+            <a-select v-model="manualMetadata.type">
+              <a-option value="movie">电影</a-option>
+              <a-option value="tv">电视剧</a-option>
+              <a-option value="unmatched">未匹配</a-option>
+            </a-select>
+          </a-form-item>
+        </div>
+        <a-form-item field="tmdbId" label="TMDB ID">
+          <a-input v-model="manualMetadata.tmdbId" placeholder="可选，留空可清除" />
+        </a-form-item>
+        <a-form-item field="genres" label="分类">
+          <a-input v-model="manualMetadata.genres" placeholder="用逗号分隔，例如 剧情, 科幻" />
+        </a-form-item>
+        <a-form-item field="overview" label="简介">
+          <a-textarea v-model="manualMetadata.overview" :auto-size="{ minRows: 3, maxRows: 6 }" placeholder="可选" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -936,6 +968,9 @@ const folderForm = ref({ name: '' })
 const showContextMenu = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const contextMenuItem = ref<MediaLibraryItem | null>(null)
+const manualMetadataVisible = ref(false)
+const manualMetadataTarget = ref<MediaLibraryItem | null>(null)
+const manualMetadata = ref({ name: '', year: '', type: 'movie' as MediaLibraryItem['type'], tmdbId: '', genres: '', overview: '' })
 const selectedGenre = ref('')
 const selectedYear = ref('')
 const selectedRating = ref('')
@@ -1948,6 +1983,44 @@ const aiRescrapeFromMenu = async () => {
   await handleManualAIScrape(target)
 }
 
+const openManualMetadataEditor = () => {
+  const target = contextMenuItem.value
+  handleContextMenuClose()
+  if (!target) return
+  manualMetadataTarget.value = target
+  manualMetadata.value = {
+    name: target.name,
+    year: target.year || '',
+    type: target.type,
+    tmdbId: target.tmdbId ? String(target.tmdbId) : '',
+    genres: target.genres.join(', '),
+    overview: target.overview || ''
+  }
+  manualMetadataVisible.value = true
+}
+
+const saveManualMetadata = () => {
+  const target = manualMetadataTarget.value
+  const name = manualMetadata.value.name.trim()
+  if (!target || !name) return
+  const tmdbId = Number(manualMetadata.value.tmdbId.trim())
+  const updated: MediaLibraryItem = {
+    ...target,
+    name,
+    year: manualMetadata.value.year.trim() || undefined,
+    type: manualMetadata.value.type,
+    tmdbId: Number.isInteger(tmdbId) && tmdbId > 0 ? tmdbId : undefined,
+    genres: manualMetadata.value.genres.split(',').map((genre) => genre.trim()).filter(Boolean),
+    overview: manualMetadata.value.overview.trim() || undefined,
+    metadataSource: 'manual'
+  }
+  mediaStore.addMediaItem(updated)
+  if (currentMediaItem.value?.id === updated.id) currentMediaItem.value = updated
+  manualMetadataVisible.value = false
+  manualMetadataTarget.value = null
+  message.success('媒体信息已手动更新')
+}
+
 const getBaseMediaId = (item: MediaLibraryItem) => {
   const parts = String(item.id).split('_')
   if (parts.length >= 3) return parts.slice(0, -2).join('_')
@@ -2158,9 +2231,9 @@ const handleAddFolder = async () => {
 
 const buildAliFileModel = (driveFile: DriveFileItem): IAliGetFileModel => {
   const ext = driveFile.name.split('.').pop() || ''
-  const parentFileId = (driveFile.driveId || '').startsWith('webdav:')
+  const parentFileId = driveFile.parentFileId || ((driveFile.driveId || '').startsWith('webdav:')
     ? ((driveFile.path || '').replace(/\/[^/]*$/, '') || '/')
-    : 'root'
+    : 'root')
   return {
     __v_skip: true,
     drive_id: driveFile.driveId,
@@ -5203,5 +5276,11 @@ body:not([arco-theme='dark']) .detail-media-modal .home-library-manager-empty {
 body:not([arco-theme='dark']) .detail-media-modal .home-library-manager-drag-icon {
   color: rgba(17, 24, 39, 0.54) !important;
   opacity: 1 !important;
+}
+
+.manual-metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 </style>

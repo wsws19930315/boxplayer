@@ -57,6 +57,9 @@ const noticeText = ref('')
 const audioTrackId = ref(-1)
 const subtitleTrackId = ref(-1)
 let autoSelectedSubtitleTrackId: number | undefined
+let resumeGuardTarget = 0
+let resumeGuardUntil = 0
+let resumeGuardLastSeekAt = 0
 const secondarySubtitleTrackId = ref(-1)
 const subtitleDelay = ref(0)
 const subtitleScale = ref(1)
@@ -132,6 +135,7 @@ let controlsHideTimer: number | null = null
 let noticeTimer: number | null = null
 let lastPointerY: number | null = null
 let pendingResumePosition = 0
+let loadSequence = 0
 const CONTROLS_REVEAL_ZONE = 180
 const CONTROLS_HIDE_ZONE = 220
 const CONTROLS_DIRECTION_THRESHOLD = 2
@@ -426,8 +430,20 @@ const handleSurfacePointerLeave = () => {
 const updateStatus = async () => {
   const result = await window.WebMpvEmbeddedStatus?.()
   if (!result?.ok) return
-  emit('status', result.status)
+  const status = { ...result.status, __loading: !loaded.value }
+  emit('status', status)
   applyStatusResult(result)
+  if (
+    loaded.value
+    && resumeGuardTarget > 0
+    && Date.now() < resumeGuardUntil
+    && typeof position.value === 'number'
+    && position.value < resumeGuardTarget - 2
+    && Date.now() - resumeGuardLastSeekAt > 300
+  ) {
+    resumeGuardLastSeekAt = Date.now()
+    void control('seek', resumeGuardTarget)
+  }
 }
 
 const applyStatusResult = (result: any) => {
@@ -447,15 +463,31 @@ const applyStatusResult = (result: any) => {
   statusText.value = duration.value > 0 ? `${formatTime(position.value)} / ${formatTime(duration.value)}` : ''
   if (result.status?.playing || position.value > 0 || frameCount.value > 0) errorText.value = ''
   handleIntroOutroSkip()
-  if (pendingResumePosition > 0 && duration.value > 0 && loaded.value) {
-    const nextPosition = pendingResumePosition
-    pendingResumePosition = 0
-    void control('seek', nextPosition)
+}
+
+const restorePendingResumePosition = async (sequence: number) => {
+  const target = pendingResumePosition
+  if (target <= 0) return
+
+  // MPV accepts the seek command asynchronously. Do not clear the pending
+  // position until a later status confirms that the seek actually landed.
+  for (let attempt = 0; attempt < 8 && sequence === loadSequence; attempt++) {
+    await control('seek', target)
+    await new Promise(resolve => window.setTimeout(resolve, 100))
+    await updateStatus()
+    if (position.value >= Math.max(0, target - 2)) {
+      pendingResumePosition = 0
+      resumeGuardTarget = target
+      resumeGuardUntil = Date.now() + 6000
+      resumeGuardLastSeekAt = Date.now()
+      return
+    }
   }
 }
 
 const load = async () => {
   if (!props.url) return
+  const sequence = ++loadSequence
   if (!isAvailable.value) {
     const message = 'macOS 内嵌 MPV surface 尚不可用。'
     errorText.value = message
@@ -465,18 +497,28 @@ const load = async () => {
 
   loading.value = true
   loaded.value = false
+  resumeGuardTarget = 0
+  resumeGuardUntil = 0
+  resumeGuardLastSeekAt = 0
   autoSelectedSubtitleTrackId = undefined
   pendingResumePosition = props.startPosition && props.startPosition > 0 ? Math.floor(props.startPosition) : 0
   introSkipped.value = false
   outroTriggered.value = false
   errorText.value = ''
   const headers = Object.fromEntries(Object.entries(props.headers || {}).map(([key, value]) => [key, String(value)]))
+  console.info('[播放][MPV] 提交播放链接', {
+    url: props.url,
+    position: props.startPosition || 0,
+    hasAuthorization: Object.keys(headers).some((key) => key.toLowerCase() === 'authorization'),
+    userAgent: Object.entries(headers).find(([key]) => key.toLowerCase() === 'user-agent')?.[1] || ''
+  })
   const result = await window.WebMpvEmbeddedLoad({
     url: props.url,
     headers,
     title: props.title || '',
     startPosition: props.startPosition || 0
   })
+  if (sequence !== loadSequence) return
   loading.value = false
 
   if (!result?.ok) {
@@ -487,10 +529,14 @@ const load = async () => {
   }
 
   await updateStatus()
+  if (sequence !== loadSequence) return
   loaded.value = true
-  await control('play')
   await applySubtitleStyle()
   if (props.externalSubtitle?.url) await control('addSubtitle', undefined, { url: props.externalSubtitle.url, title: props.externalSubtitle.title || '自动字幕' })
+  // Subtitle setup may reload/reset the native stream. It must happen before
+  // the final seek; otherwise a successful resume can be overwritten by 0.
+  await control('play')
+  await restorePendingResumePosition(sequence)
 }
 
 const control = async (action: 'play' | 'pause' | 'stop' | 'seek' | 'setVolume' | 'setSpeed' | 'setAudioTrack' | 'setSubtitleTrack' | 'setSubtitleStyle' | 'setVideoProperty' | 'addAudio' | 'addSubtitle', value?: number, extra?: { url?: string; title?: string; property?: string; propertyValue?: string | number | boolean; style?: { fontSize?: number; color?: string; position?: number; bold?: boolean; italic?: boolean } }) => {
@@ -506,7 +552,8 @@ const control = async (action: 'play' | 'pause' | 'stop' | 'seek' | 'setVolume' 
     }
     return
   }
-  emit('status', result.status)
+  const status = { ...result.status, __loading: !loaded.value }
+  emit('status', status)
   applyStatusResult(result)
   if (action === 'stop') clearFrame()
 }
@@ -886,6 +933,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  loadSequence++
   if (statusTimer != null) window.clearInterval(statusTimer)
   statusTimer = null
   if (noticeTimer != null) window.clearTimeout(noticeTimer)

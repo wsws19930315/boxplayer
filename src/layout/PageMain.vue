@@ -612,7 +612,7 @@ onUnmounted(() => {
     </a-layout-footer>
   </a-layout>
 
-    <DropOverlay @files-dropped="handleMineradioFilesDropped" />
+    <DropOverlay v-if="appStore.appTab === 'music'" @files-dropped="handleMineradioFilesDropped" />
     <LimitReachedModal :visible="showLimitModal" @update:visible="showLimitModal = $event" />
   </template>
 
