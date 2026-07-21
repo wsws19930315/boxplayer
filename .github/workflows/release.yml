@@ -20,6 +20,9 @@ jobs:
     needs: linux-mpv-test
     strategy:
       fail-fast: false
+      # Each platform publishes to the same GitHub Release. Run them one at a
+      # time so two runners never try to create the tag release concurrently.
+      max-parallel: 1
       matrix:
         os: [ windows-latest, ubuntu-latest, macos-14 ]
     runs-on: ${{ matrix.os }}
