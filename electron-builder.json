@@ -96,7 +96,7 @@
       "owner": "gaozhangmin",
       "repo": "boxplayer",
       "provider": "github",
-      "releaseType": "draft"
+      "releaseType": "prerelease"
     }
   ]
 }
